@@ -30,6 +30,16 @@ on:
         description: "Optional direct HTTPS audio URL that you have rights to use"
         required: false
         type: string
+      narration_text:
+        description: "Optional Russian voiceover script (leave blank for no narration)"
+        required: false
+        type: string
+      voice:
+        description: "Narrator voice"
+        required: true
+        default: "ru-RU-DmitryNeural"
+        type: choice
+        options: ["ru-RU-DmitryNeural", "ru-RU-SvetlanaNeural"]
       duration:
         description: "Video duration in seconds"
         required: true
@@ -51,6 +61,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           ffmpeg -version | head -n 1
+      - name: Install free text-to-speech dependency
+        if: ${{ inputs.narration_text != '' }}
+        run: python3 -m pip install --user edge-tts
       - name: Build vertical TikTok video and creator pack
         env:
           PROJECT_TITLE: ${{ inputs.title }}
@@ -59,6 +72,8 @@ jobs:
           HASHTAGS: ${{ inputs.hashtags }}
           DESCRIPTION: ${{ inputs.description }}
           MUSIC_URL: ${{ inputs.music_url }}
+          NARRATION_TEXT: ${{ inputs.narration_text }}
+          VOICE: ${{ inputs.voice }}
           DURATION: ${{ inputs.duration }}
         run: python3 scripts/studio_build.py
       - name: Upload finished studio package
