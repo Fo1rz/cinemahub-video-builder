@@ -4,9 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/build-gta6.yml"
-      - "scripts/**"
-      - "README.md"
+      - "scripts/build_video.py"
   workflow_dispatch:
 
 permissions:
