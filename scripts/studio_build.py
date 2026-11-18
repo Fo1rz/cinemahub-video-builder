@@ -35,7 +35,11 @@ def main():
     if len(urls) > 20:
         raise RuntimeError("Maximum 20 source clips per build.")
     ROOT.mkdir(parents=True, exist_ok=True); OUT.mkdir(exist_ok=True)
-    clips, clip_lengths = [], []
+    pace = os.getenv("PACE", "fast").strip().lower()
+    pace_seconds = {"fast": 1.6, "balanced": 2.4, "cinematic": 3.6}
+    if pace not in pace_seconds:
+        raise RuntimeError("PACE must be fast, balanced, or cinematic.")
+    sources = []
     for i, url in enumerate(urls):
         ext = Path(url.split("?")[0]).suffix.lower()
         if ext not in VIDEO_EXTS:
@@ -45,13 +49,25 @@ def main():
         length = probe(src)
         if length < 0.8:
             raise RuntimeError(f"Source {i+1} is not a readable video.")
-        target = ROOT / f"clip_{i:02d}.mp4"
-        clip_len = min(length, max(2.0, duration/len(urls)))
-        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),"-t",f"{clip_len:.2f}",
+        sources.append((src, length))
+    # Build a paced montage from short excerpts distributed across the supplied sources.
+    segment_count = max(1, int((duration + pace_seconds[pace] - 0.001) // pace_seconds[pace]))
+    visits = [0] * len(sources)
+    visit_totals = [sum(1 for k in range(segment_count) if k % len(sources) == i) for i in range(len(sources))]
+    clips, clip_lengths = [], []
+    for k in range(segment_count):
+        src, source_length = sources[k % len(sources)]
+        source_index = k % len(sources)
+        seg_len = min(pace_seconds[pace], source_length)
+        slots = max(1, visit_totals[source_index] - 1)
+        offset = 0.0 if visit_totals[source_index] <= 1 else (visits[source_index] * max(0.0, source_length - seg_len) / slots)
+        visits[source_index] += 1
+        target = ROOT / f"segment_{k:03d}.mp4"
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{offset:.3f}","-i",str(src),"-t",f"{seg_len:.2f}",
              "-vf","scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
              "-an","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-movflags","+faststart",str(target)])
-        clips.append(target); clip_lengths.append(clip_len)
-    # Repeat the selected montage if source footage is shorter than the requested output.
+        clips.append(target); clip_lengths.append(seg_len)
+    # Repeat the paced sequence only when the selected excerpts do not fill the requested duration.
     playlist, total = list(clips), sum(clip_lengths)
     while total < duration:
         playlist.extend(clips)
@@ -127,7 +143,7 @@ def main():
         "NOTE: Verify music and footage usage rights before publishing. If no music was supplied, add a sound from TikTok's in-app library.\n"
     )
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
-    print(f"Sources processed: {len(clips)} | duration: {duration}s | hook: {'included' if hook_text else 'off'} | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
+    print(f"Sources processed: {len(clips)} | duration: {duration}s | pace: {pace} | hook: {'included' if hook_text else 'off'} | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
 
 if __name__ == "__main__":
     main()
