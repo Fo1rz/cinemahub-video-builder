@@ -61,11 +61,25 @@ def main():
         archive.extractall(media)
 
     sources = sorted(p for p in media.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS)
+    # Optional supplemental sources: user-owned gameplay, licensed stock footage, or CC media.
+    extra_urls = [u.strip() for u in __import__("os").getenv("EXTRA_SOURCE_URLS", "").splitlines() if u.strip()]
+    if len(extra_urls) > 12:
+        raise RuntimeError("Maximum 12 supplemental sources.")
+    for i, url in enumerate(extra_urls):
+        if not url.startswith("https://"):
+            raise RuntimeError("Supplemental sources must be direct HTTPS media URLs.")
+        ext = Path(url.split("?")[0]).suffix.lower()
+        if ext not in VIDEO_EXTS:
+            raise RuntimeError(f"Supplemental source {i+1} must be a direct MP4/MOV/M4V/WebM file URL.")
+        dest = media / f"supplemental_{i:02d}{ext}"
+        print(f"Downloading supplemental source {i+1}/{len(extra_urls)}...")
+        fetch(url, dest)
+        sources.append(dest)
     usable = [(p, probe_duration(p)) for p in sources]
     usable = [(p, d) for p, d in usable if d >= 2.0]
     if len(usable) < 3:
         raise RuntimeError(f"Only {len(usable)} usable official videos found; need at least three distinct sources.")
-    print(f"Found {len(usable)} usable official videos.")
+    print(f"Found {len(usable)} usable videos across official and supplemental sources.")
 
     # Deterministic shuffle gives a different editorial order from alphabetical archive order.
     rng = random.Random(6172026)
