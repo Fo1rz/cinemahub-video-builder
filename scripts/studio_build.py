@@ -70,8 +70,11 @@ def main():
         voice_file = ROOT / "voiceover.mp3"
         subtitles_file = ROOT / "voiceover.vtt"
         run(["python3","-m","edge_tts","--voice",voice,"--text",narration,"--write-media",str(voice_file),"--write-subtitles",str(subtitles_file)])
-        if not voice_file.exists() or voice_file.stat().st_size < 1000:
-            raise RuntimeError("Text-to-speech did not produce a valid voiceover.")
+        if not voice_file.exists() or voice_file.stat().st_size < 1000 or not subtitles_file.exists():
+            raise RuntimeError("Text-to-speech did not produce valid audio and subtitle files.")
+        speech_duration = probe(voice_file)
+        if speech_duration > duration:
+            raise RuntimeError(f"Voiceover is {speech_duration:.1f}s but the video is {duration}s. Shorten the narration script.")
         audio_inputs.append(voice_file)
         # Burn readable Russian captions into the video and keep separate subtitle/audio assets.
         captioned = ROOT / "captioned.mp4"
@@ -97,6 +100,7 @@ def main():
     safe_title = title.replace("\n"," ").strip()
     (OUT / "publication-pack.txt").write_text(
         f"TITLE: {safe_title}\nCATEGORY: {category}\nDURATION: {duration}s\n\nDESCRIPTION:\n{description}\n\nHASHTAGS:\n{hashtags}\n\n"
+        f"VOICEOVER: {'included' if narration else 'not included'}\nCAPTIONS: {'burned into video; VTT also included' if narration else 'not included'}\n"
         "NOTE: Verify music and footage usage rights before publishing. If no music was supplied, add a sound from TikTok's in-app library.\n"
     )
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
