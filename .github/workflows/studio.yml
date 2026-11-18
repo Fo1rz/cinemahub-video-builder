@@ -48,6 +48,12 @@ on:
         default: "ru-RU-DmitryNeural"
         type: choice
         options: ["ru-RU-DmitryNeural", "ru-RU-SvetlanaNeural"]
+      pace:
+        description: "Montage rhythm: fast (1.6s cuts), balanced (2.4s), cinematic (3.6s)"
+        required: true
+        default: "fast"
+        type: choice
+        options: ["fast", "balanced", "cinematic"]
       duration:
         description: "Video duration in seconds"
         required: true
@@ -95,6 +101,7 @@ jobs:
           NARRATION_TEXT: ${{ inputs.narration_text }}
           VOICE: ${{ inputs.voice }}
           DURATION: ${{ inputs.duration }}
+          PACE: ${{ inputs.pace }}
         run: python3 scripts/studio_build.py
       - name: Upload finished studio package
         uses: actions/upload-artifact@v4
