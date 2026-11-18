@@ -7,7 +7,7 @@ WORK, OUT = Path("work"), Path("output")
 DURATION, SHOTS = 22.5, 12
 SOURCE = "https://media-rockstargames-com.akamaized.net/VI/downloads/videos/GTAVI_An_Extended_Look/GTAVI_An_Extended_Look.mp4"
 # Spread excerpts through the official 26-minute in-game showcase.
-TIMES = [480, 540, 561, 690, 795, 840, 900, 1040, 1065, 1128, 1402, 1450]
+TIMES = [501, 540, 688, 790, 840, 1037, 1045, 1061, 1093, 1128, 1402, 1511]
 
 def run(cmd):
     subprocess.run(cmd,check=True)
