@@ -136,11 +136,11 @@ def main():
     usable = [(p, d) for p, d in usable if d >= 2.0]
     official_usable = [(p, d) for p, d in usable if p not in external_sources]
     external_usable = [(p, d) for p, d in usable if p in external_sources]
-    if len(official_usable) < 2 or len(external_usable) < 2:
-        raise RuntimeError(f"Need at least 2 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
+    if len(official_usable) < 1 or len(external_usable) < 2:
+        raise RuntimeError(f"Need at least 1 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
     print(f"Found {len(official_usable)} official and {len(external_usable)} external videos.")
 
-    # Alternate real Miami and GTA VI footage throughout the montage.
+    # Alternate real Miami and GTA VI footage; repeat source only with different timeline selections when needed.
     rng = random.Random(6172026)
     rng.shuffle(official_usable)
     rng.shuffle(external_usable)
