@@ -6,6 +6,12 @@ on:
       - "scripts/build_video.py"
       - ".github/workflows/gta6-cinematic.yml"
   workflow_dispatch:
+    inputs:
+      extra_source_urls:
+        description: "Optional direct HTTPS MP4/MOV/M4V/WebM links to your gameplay or licensed stock clips (one per line)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -24,6 +30,8 @@ jobs:
       - name: Validate Python
         run: python3 -m py_compile scripts/build_video.py
       - name: Render new cinematic GTA VI montage
+        env:
+          EXTRA_SOURCE_URLS: ${{ inputs.extra_source_urls }}
         run: python3 scripts/build_video.py
       - name: Verify output format and duration
         run: |
