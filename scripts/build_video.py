@@ -22,7 +22,6 @@ SHOT_LEN = DURATION / SHOT_COUNT
 COMMONS_FILES = [
     ("Une plage à Miami Beach (Floride) en février 2022.webm", "CC0 1.0", "Benoît Prieur", "https://creativecommons.org/publicdomain/zero/1.0/", "https://commons.wikimedia.org/wiki/File:Une_plage_à_Miami_Beach_(Floride)_en_février_2022.webm"),
     ("Miami International Airport (MIA) June 2024 VID (0).webm", "CC BY 4.0", "FunctioningMemberOfSociety", "https://creativecommons.org/licenses/by/4.0/", "https://commons.wikimedia.org/wiki/File:Miami_International_Airport_(MIA)_June_2024_VID_(0).webm"),
-    ("MIA Mover-01.webm", "Public domain", "Priwo", "https://commons.wikimedia.org/wiki/Commons:Licensing", "https://commons.wikimedia.org/wiki/File:MIA_Mover-01.webm"),
 ]
 def run(cmd):
     subprocess.run(cmd, check=True)
