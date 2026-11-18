@@ -35,7 +35,7 @@ def main():
     if len(urls) > 20:
         raise RuntimeError("Maximum 20 source clips per build.")
     ROOT.mkdir(parents=True, exist_ok=True); OUT.mkdir(exist_ok=True)
-    clips = []
+    clips, clip_lengths = [], []
     for i, url in enumerate(urls):
         ext = Path(url.split("?")[0]).suffix.lower()
         if ext not in VIDEO_EXTS:
@@ -50,9 +50,14 @@ def main():
         run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),"-t",f"{clip_len:.2f}",
              "-vf","scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
              "-an","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-movflags","+faststart",str(target)])
-        clips.append(target)
+        clips.append(target); clip_lengths.append(clip_len)
+    # Repeat the selected montage if source footage is shorter than the requested output.
+    playlist, total = list(clips), sum(clip_lengths)
+    while total < duration:
+        playlist.extend(clips)
+        total += sum(clip_lengths)
     concat = ROOT / "concat.txt"
-    concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in clips))
+    concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in playlist))
     silent = ROOT / "silent.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(duration),
          "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","veryfast","-crf","19","-an","-movflags","+faststart",str(silent)])
