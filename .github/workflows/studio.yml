@@ -63,7 +63,7 @@ jobs:
           ffmpeg -version | head -n 1
       - name: Install free text-to-speech dependency
         if: ${{ inputs.narration_text != '' }}
-        run: python3 -m pip install --user edge-tts
+        run: python3 -m pip install --user --break-system-packages edge-tts
       - name: Build vertical TikTok video and creator pack
         env:
           PROJECT_TITLE: ${{ inputs.title }}
