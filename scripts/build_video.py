@@ -37,7 +37,7 @@ def main():
     for name,url in SOURCES:
         target=WORK/f"{name}.mp4"
         print("Downloading official Rockstar trailer:",name)
-        run(["python3","-m","yt_dlp","--no-playlist","--no-warnings","-f","bv*[height>=1080]+ba/b","--merge-output-format","mp4","-o",str(target),url])
+        run(["yt-dlp","--no-playlist","--no-warnings","-f","bv*[height>=1080]+ba/b","--merge-output-format","mp4","-o",str(target),url])
         if not target.exists() or target.stat().st_size<5_000_000:
             raise RuntimeError(f"Official source download failed or was too small: {name}")
         d=probe_duration(target)
