@@ -19,10 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install FFmpeg
+      - name: Check FFmpeg
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -n 1
 
       - name: Download official Rockstar media and assemble vertical edit
         run: python3 scripts/build_video.py
