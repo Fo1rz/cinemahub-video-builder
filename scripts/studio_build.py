@@ -63,9 +63,32 @@ def main():
          "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","veryfast","-crf","19","-an","-movflags","+faststart",str(silent)])
     music_url = os.getenv("MUSIC_URL","").strip()
     narration = os.getenv("NARRATION_TEXT","").strip()
+    hook_text = os.getenv("HOOK_TEXT","").strip()
     voice = os.getenv("VOICE","ru-RU-DmitryNeural").strip()
+    if duration not in {15, 22, 30, 45, 60}:
+        raise RuntimeError("Duration must be one of: 15, 22, 30, 45, 60 seconds.")
+    if voice not in {"ru-RU-DmitryNeural", "ru-RU-SvetlanaNeural"}:
+        raise RuntimeError("Unsupported voice. Choose Dmitry or Svetlana.")
+    if len(narration) > 2000:
+        raise RuntimeError("Narration is too long (maximum 2000 characters).")
+    if len(hook_text) > 120:
+        raise RuntimeError("Hook text is too long (maximum 120 characters).")
     final = OUT / "cinemahub-video.mp4"
     audio_inputs = []
+    if hook_text:
+        hook_file = ROOT / "hook.txt"
+        hook_file.write_text(hook_text, encoding="utf-8")
+        hooked = ROOT / "hooked.mp4"
+        hook_filter = (
+            "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
+            f"textfile={hook_file.as_posix()}:fontcolor=white:fontsize=62:"
+            "borderw=4:bordercolor=black:box=1:boxcolor=black@0.48:boxborderw=24:"
+            "x=(w-text_w)/2:y=h*0.13:enable='between(t,0,2.8)'"
+        )
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),
+             "-vf",hook_filter,"-c:v","libx264","-preset","veryfast","-crf","19",
+             "-pix_fmt","yuv420p","-an","-movflags","+faststart",str(hooked)])
+        silent = hooked
     if narration:
         voice_file = ROOT / "voiceover.mp3"
         subtitles_file = ROOT / "voiceover.vtt"
@@ -78,7 +101,7 @@ def main():
         audio_inputs.append(voice_file)
         # Burn readable Russian captions into the video and keep separate subtitle/audio assets.
         captioned = ROOT / "captioned.mp4"
-        subtitle_filter = f"subtitles=filename='{subtitles_file.as_posix()}':force_style='FontName=DejaVu Sans,FontSize=18,PrimaryColour=&H00FFFFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=150'"
+        subtitle_filter = f"subtitles=filename='{subtitles_file.as_posix()}':force_style='FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=150'"
         run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-vf",subtitle_filter,"-c:v","libx264","-preset","veryfast","-crf","19","-pix_fmt","yuv420p","-an","-movflags","+faststart",str(captioned)])
         shutil.copy2(subtitles_file, OUT / "voiceover.vtt")
         shutil.copy2(voice_file, OUT / "voiceover.mp3")
@@ -100,11 +123,11 @@ def main():
     safe_title = title.replace("\n"," ").strip()
     (OUT / "publication-pack.txt").write_text(
         f"TITLE: {safe_title}\nCATEGORY: {category}\nDURATION: {duration}s\n\nDESCRIPTION:\n{description}\n\nHASHTAGS:\n{hashtags}\n\n"
-        f"VOICEOVER: {'included' if narration else 'not included'}\nCAPTIONS: {'burned into video; VTT also included' if narration else 'not included'}\n"
+        f"HOOK: {'included in first 2.8 seconds' if hook_text else 'not included'}\nVOICEOVER: {'included' if narration else 'not included'}\nCAPTIONS: {'burned into video; VTT also included' if narration else 'not included'}\n"
         "NOTE: Verify music and footage usage rights before publishing. If no music was supplied, add a sound from TikTok's in-app library.\n"
     )
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
-    print(f"Sources processed: {len(clips)} | duration: {duration}s | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
+    print(f"Sources processed: {len(clips)} | duration: {duration}s | hook: {'included' if hook_text else 'off'} | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
 
 if __name__ == "__main__":
     main()
