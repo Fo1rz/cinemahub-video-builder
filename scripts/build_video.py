@@ -6,6 +6,8 @@ import zipfile
 import random
 import re
 import html
+import json
+from urllib.parse import urlencode
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -17,16 +19,11 @@ VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm"}
 DURATION = 22.5
 SHOT_COUNT = 18
 SHOT_LEN = DURATION / SHOT_COUNT
-PEXELS_PAGE_URLS = [
-    "https://www.pexels.com/video/aerial-view-of-miami-waterfront-skyline-37461918/",
-    "https://www.pexels.com/video/vibrant-city-skyline-and-traffic-lights-at-night-30684445/",
-    "https://www.pexels.com/video/vibrant-night-urban-cityscape-with-traffic-36443796/",
-    "https://www.pexels.com/video/aerial-view-of-miami-beach-lined-with-palm-trees-31673932/",
-    "https://www.pexels.com/video/traffic-in-the-city-of-miami-9620604/",
-    "https://www.pexels.com/video/aerial-night-view-of-city-traffic-and-skyline-30508009/",
-    "https://www.pexels.com/video/driving-on-a-highway-at-night-15270404/",
+COMMONS_FILES = [
+    ("Une plage à Miami Beach (Floride) en février 2022.webm", "CC0 1.0", "Benoît Prieur"),
+    ("Miami International Airport (MIA) June 2024 VID (0).webm", "CC BY 4.0", "FunctioningMemberOfSociety"),
+    ("MIA Mover-01.webm", "Public domain dedication", "Priwo"),
 ]
-
 def run(cmd):
     subprocess.run(cmd, check=True)
 
@@ -48,6 +45,28 @@ def resolve_pexels_page(page_url, dest):
     fetch(urls[0], dest)
     if dest.stat().st_size < 100_000:
         raise RuntimeError(f"Pexels media unexpectedly small: {page_url}")
+
+
+def download_commons_file(filename, dest):
+    params = urlencode({
+        "action": "query",
+        "titles": "File:" + filename,
+        "prop": "imageinfo",
+        "iiprop": "url",
+        "format": "json",
+    })
+    api = "https://commons.wikimedia.org/w/api.php?" + params
+    req = Request(api, headers={"User-Agent": "CinemaHubStudio/2.2 (https://github.com/Fo1rz/cinemahub-video-builder)"})
+    with urlopen(req, timeout=60) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    pages = payload.get("query", {}).get("pages", {})
+    page = next(iter(pages.values()), {})
+    info = page.get("imageinfo", [])
+    if not info or not info[0].get("url"):
+        raise RuntimeError(f"Commons original media URL not found: {filename}")
+    fetch(info[0]["url"], dest)
+    if dest.stat().st_size < 100_000:
+        raise RuntimeError(f"Commons media unexpectedly small: {filename}")
 
 
 def probe_duration(path):
@@ -88,10 +107,11 @@ def main():
 
     sources = sorted(p for p in media.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS)
     external_sources = []
-    for i, page_url in enumerate(PEXELS_PAGE_URLS):
-        dest = media / f"pexels_miami_{i:02d}.mp4"
-        print(f"Resolving Pexels Miami footage {i+1}/{len(PEXELS_PAGE_URLS)}...")
-        resolve_pexels_page(page_url, dest)
+    for i, (filename, license_name, author) in enumerate(COMMONS_FILES):
+        ext = Path(filename).suffix.lower()
+        dest = media / f"commons_miami_{i:02d}{ext}"
+        print(f"Downloading Wikimedia Commons source {i+1}/{len(COMMONS_FILES)}: {filename}")
+        download_commons_file(filename, dest)
         external_sources.append(dest)
         sources.append(dest)
     # Optional supplemental sources: user-owned gameplay, licensed stock footage, or CC media.
@@ -189,7 +209,7 @@ def main():
         "DESCRIPTION: Сначала кажется, что это реальный Майами. А потом понимаешь — это Vice City. 🌴🔥 Какой кадр выглядит реалистичнее?\n\n"
         "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\n\n"
         "SOURCE: Rockstar Games promotional media + free Pexels stock footage.\n"
-        "PEXELS: " + "\\n".join(PEXELS_PAGE_URLS) + "\\n"
+        "PEXELS: " + "\\n".join(COMMONS_FILES) + "\\n"
         "NOTE: Check Rockstar's current fan-content policy before monetizing or using promotional footage commercially.\n",
         encoding="utf-8"
     )
