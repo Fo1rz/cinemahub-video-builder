@@ -62,14 +62,26 @@ def main():
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(duration),
          "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","veryfast","-crf","19","-an","-movflags","+faststart",str(silent)])
     music_url = os.getenv("MUSIC_URL","").strip()
+    narration = os.getenv("NARRATION_TEXT","").strip()
+    voice = os.getenv("VOICE","ru-RU-DmitryNeural").strip()
     final = OUT / "cinemahub-video.mp4"
+    audio_inputs = []
+    if narration:
+        voice_file = ROOT / "voiceover.mp3"
+        run(["python3","-m","edge_tts","--voice",voice,"--text",narration,"--write-media",str(voice_file)])
+        if not voice_file.exists() or voice_file.stat().st_size < 1000:
+            raise RuntimeError("Text-to-speech did not produce a valid voiceover.")
+        audio_inputs.append(voice_file)
     if music_url:
         music = ROOT / "music.mp3"
         download(music_url, music)
-        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-stream_loop","-1","-i",str(music),
-             "-t",str(duration),"-map","0:v:0","-map","1:a:0","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",str(final)])
-    else:
+        audio_inputs.append(music)
+    if not audio_inputs:
         shutil.copy2(silent, final)
+    elif len(audio_inputs) == 1:
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio_inputs[0]),"-t",str(duration),"-map","0:v:0","-map","1:a:0","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",str(final)])
+    else:
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio_inputs[0]),"-stream_loop","-1","-i",str(audio_inputs[1]),"-filter_complex","[1:a]volume=1.0[voice];[2:a]volume=0.16[music];[voice][music]amix=inputs=2:duration=longest:dropout_transition=2[a]","-t",str(duration),"-map","0:v:0","-map","[a]","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",str(final)])
     cover = OUT / "cover.jpg"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","1","-i",str(final),"-frames:v","1","-q:v","2",str(cover)])
     hashtags = os.getenv("HASHTAGS", "#CinemaHub").strip()
