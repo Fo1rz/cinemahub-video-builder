@@ -61,7 +61,8 @@ def main():
     meta=[]
     for p in vids:
         d=duration(p)
-        print("SOURCE_DURATION",p.name,d)\n        if d>1.5: meta.append((p,d,scene_points(p,d)))
+        print("SOURCE_DURATION",p.name,d)
+        if d>1.5: meta.append((p,d,scene_points(p,d)))
     if len(meta)<6: raise RuntimeError("Not enough readable official Rockstar videos after validation.")
     shot_len=DURATION/SHOTS
     # Prefer a different official asset for each cut; revisit only the main trailer if needed.
