@@ -1,10 +1,6 @@
 name: Build GTA VI TikTok
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/build_video.py"
   workflow_dispatch:
 
 permissions:
