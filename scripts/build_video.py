@@ -20,14 +20,17 @@ def main():
     headers="Referer: https://www.rockstargames.com/\r\nOrigin: https://www.rockstargames.com\r\nUser-Agent: Mozilla/5.0 CinemaHubStudio/3.0\r\n"
     for i,start in enumerate(TIMES):
         out=WORK/f"shot_{i:02d}.mp4"
-        vf=("scale=2160:3840:force_original_aspect_ratio=increase,"
-            "crop=1215:2160:x='(iw-ow)*0.50':y=(ih-oh)/2,"
-            "scale=1080:1920,fps=30,"
+        # Preserve the complete 16:9 gameplay frame; use a soft enlarged duplicate as the vertical canvas.
+        vf=("[0:v]split=2[bg][fg];"
+            "[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
+            "boxblur=28:12,eq=brightness=-0.16:saturation=0.72[back];"
+            "[fg]scale=1080:-2:flags=lanczos,"
             "eq=contrast=1.07:saturation=1.12:brightness=0.012:gamma=1.06,"
-            "unsharp=5:5:0.30:3:3:0,format=yuv420p")
+            "unsharp=5:5:0.30:3:3:0[front];"
+            "[back][front]overlay=(W-w)/2:(H-h)/2,fps=30,format=yuv420p[v]")
         print(f"Extracting official 4K scene {i+1}/{SHOTS} at {start}s")
         run(["ffmpeg","-hide_banner","-loglevel","warning","-rw_timeout","60000000","-headers",headers,
-             "-ss",str(start),"-i",SOURCE,"-t",f"{shot_len:.3f}","-vf",vf,"-an",
+             "-ss",str(start),"-i",SOURCE,"-t",f"{shot_len:.3f}","-filter_complex",vf,"-map","[v]","-an",
              "-c:v","libx264","-preset","medium","-crf","16","-r","30","-pix_fmt","yuv420p",
              "-movflags","+faststart",str(out)])
         if not out.exists() or out.stat().st_size<100_000: raise RuntimeError(f"Failed to extract scene {i+1}")
@@ -50,7 +53,7 @@ def main():
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","15.5","-i",str(final),"-frames:v","1","-q:v","2",str(cover)])
     (OUT/"publication-pack.txt").write_text(
         "TITLE: VICE CITY — НИКАКИХ ПРАВИЛ\nDURATION: 22.5s\nFORMAT: 1080x1920, 30 fps, H.264\n"
-        "EDIT: 12 curated excerpts from Rockstar's official 4K in-game Extended Look; no real-world footage.\n"
+        "EDIT: 12 curated excerpts from Rockstar's official 4K in-game Extended Look; full gameplay frame preserved inside a blurred 9:16 canvas, no center crop.\n"
         "AUDIO: No music embedded. Add a rising GTA / cinematic sound from TikTok's in-app library.\n\n"
         "DESCRIPTION: Завтра начинается новая глава. Добро пожаловать в Vice City. 🌴🔥\n"
         "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\n\n"
