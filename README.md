@@ -1,13 +1,28 @@
-# CinemaHub Video Builder
+# CinemaHub Studio
 
-Free GitHub Actions workflow to assemble a vertical GTA VI fan edit from Rockstar Games' official media archive using FFmpeg (no generative AI).
+Free GitHub Actions-based video assembly studio for CinemaHub. It uses FFmpeg (no generative AI) to turn rights-cleared source clips into vertical TikTok-ready MP4s.
 
-## Run
+## Existing GTA VI workflow
+The original Build GTA VI TikTok workflow is preserved. It downloads Rockstar's official GTA VI media archive and builds the original 22.5-second vertical edit.
 
-Open **Actions → Build GTA VI TikTok → Run workflow**. The MP4 is uploaded as an artifact named `cinemahub-gta6-video`.
+## Universal studio
+Open Actions → CinemaHub Studio → Run workflow and provide:
+- Project title and category (games, movies, series, trailers)
+- Direct HTTPS links to video files you have permission to use (one URL per line; MP4, MOV, M4V or WebM; up to 20 clips)
+- Optional publication description and hashtags
+- Optional direct HTTPS music file only if you have the rights to use it
+- Target duration (15, 22, 30, 45 or 60 seconds)
 
-The workflow discovers the official downloadable ZIP from Rockstar's GTA VI media page. It stops if the archive cannot be downloaded or contains no usable footage; it never substitutes placeholder clips.
+The workflow produces an MP4 (1080×1920, 30 fps), a JPG cover frame and a publication pack with title, description and hashtags. The package is uploaded as a GitHub Actions artifact for 14 days.
 
-**Music:** To avoid copyright claims, the first build leaves the audio track out. Add a track licensed for reuse as `assets/music.mp3`, or add a sound from TikTok's own music library after downloading the MP4.
+## Important limitations
+- This is an assembly studio, not a footage search engine or a TikTok uploader. You or the assistant must supply direct media-file URLs; ordinary YouTube/TikTok page URLs are not direct video files.
+- Only use official press assets, public-domain/Creative Commons footage with compatible terms, or media for which you have permission. A public trailer is not automatically free to re-upload.
+- Music is optional. If omitted, add a track from TikTok's in-app music library after downloading.
+- The builder does not add AI-generated footage, fake engagement, or automatic posting.
+- All source files are validated by FFprobe; failed or unsupported downloads stop the build rather than creating a misleading empty video.
 
-Use the edit in accordance with Rockstar's fan-content policy and TikTok's copyright rules.
+## Output
+- cinemahub-video.mp4
+- cover.jpg
+- publication-pack.txt
