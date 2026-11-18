@@ -7,7 +7,7 @@ WORK, OUT = Path("work"), Path("output")
 DURATION, SHOTS = 22.5, 12
 SOURCE = "https://media-rockstargames-com.akamaized.net/VI/downloads/videos/GTAVI_An_Extended_Look/GTAVI_An_Extended_Look.mp4"
 # Spread excerpts through the official 26-minute in-game showcase.
-TIMES = [260, 324, 485, 540, 688, 750, 790, 944, 1061, 1120, 1402, 1511]
+TIMES = [480, 540, 561, 690, 795, 840, 900, 1040, 1065, 1128, 1402, 1450]
 
 def run(cmd):
     subprocess.run(cmd,check=True)
@@ -23,7 +23,7 @@ def main():
         vf=("scale=2160:3840:force_original_aspect_ratio=increase,"
             "crop=1215:2160:x='(iw-ow)*0.50':y=(ih-oh)/2,"
             "scale=1080:1920,fps=30,"
-            "eq=contrast=1.10:saturation=1.14:brightness=-0.006,"
+            "eq=contrast=1.07:saturation=1.12:brightness=0.012:gamma=1.06,"
             "unsharp=5:5:0.30:3:3:0,format=yuv420p")
         print(f"Extracting official 4K scene {i+1}/{SHOTS} at {start}s")
         run(["ffmpeg","-hide_banner","-loglevel","warning","-rw_timeout","60000000","-headers",headers,
@@ -37,17 +37,17 @@ def main():
     silent=WORK/"montage.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(DURATION),
          "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","16","-an","-movflags","+faststart",str(silent)])
-    hook=WORK/"hook.txt"; hook.write_text("ОДНА НОЧЬ. ОДИН ГОРОД. НИКАКИХ ПРАВИЛ.",encoding="utf-8")
+    hook=WORK/"hook.txt"; hook.write_text("VICE CITY. БЕЗ ПРАВИЛ.",encoding="utf-8")
     end=WORK/"end.txt"; end.write_text("19.11.2026",encoding="utf-8")
     font=__import__("os").getenv("FONT_FILE","/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
     vf=",".join([
-        f"drawtext=fontfile={font}:textfile={hook.as_posix()}:fontcolor=white:fontsize=46:borderw=3:bordercolor=black@0.75:shadowcolor=black@0.8:shadowx=2:shadowy=3:x=(w-text_w)/2:y=h*0.12:enable='between(t,0.12,1.65)'",
+        f"drawtext=fontfile={font}:textfile={hook.as_posix()}:fontcolor=white:fontsize=54:borderw=3:bordercolor=black@0.75:shadowcolor=black@0.8:shadowx=2:shadowy=3:x=(w-text_w)/2:y=h*0.12:enable='between(t,0.12,1.65)'",
         f"drawtext=fontfile={font}:textfile={end.as_posix()}:fontcolor=white:fontsize=70:borderw=3:bordercolor=black@0.75:shadowcolor=black@0.8:shadowx=2:shadowy=3:x=(w-text_w)/2:y=h*0.79:enable='between(t,20.7,22.35)'"
     ])
     final=OUT/"cinemahub-gta6.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-vf",vf,"-c:v","libx264","-preset","medium","-crf","16","-pix_fmt","yuv420p","-r","30","-an","-movflags","+faststart",str(final)])
     cover=OUT/"cover.jpg"
-    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","4.0","-i",str(final),"-frames:v","1","-q:v","2",str(cover)])
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","15.5","-i",str(final),"-frames:v","1","-q:v","2",str(cover)])
     (OUT/"publication-pack.txt").write_text(
         "TITLE: VICE CITY — НИКАКИХ ПРАВИЛ\nDURATION: 22.5s\nFORMAT: 1080x1920, 30 fps, H.264\n"
         "EDIT: 12 curated excerpts from Rockstar's official 4K in-game Extended Look; no real-world footage.\n"
