@@ -1,222 +1,115 @@
 #!/usr/bin/env python3
-"""CinemaHub GTA VI: fast, varied, cinematic vertical montage from Rockstar's official media archive."""
-import shutil
-import subprocess
-import random
-import re
-import json
-import time
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+"""CinemaHub GTA VI: official Rockstar-only vertical cinematic edit."""
+import json, re, shutil, subprocess, zipfile
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-EXTENDED_LOOK_URL = "https://videos-rockstargames-com.akamaized.net/v4/rk721912/flv/en-us-2160p.mp4"
-WORK = Path("work")
-OUT = Path("output")
-VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm"}
-DURATION = 22.5
-SHOT_COUNT = 18
-SHOT_LEN = DURATION / SHOT_COUNT
-COMMONS_FILES = [
-    ("Une plage à Miami Beach (Floride) en février 2022.webm", "CC0 1.0", "Benoît Prieur", "https://creativecommons.org/publicdomain/zero/1.0/", "https://commons.wikimedia.org/wiki/File:Une_plage_à_Miami_Beach_(Floride)_en_février_2022.webm"),
-    ("Miami International Airport (MIA) June 2024 VID (0).webm", "CC BY 4.0", "FunctioningMemberOfSociety", "https://creativecommons.org/licenses/by/4.0/", "https://commons.wikimedia.org/wiki/File:Miami_International_Airport_(MIA)_June_2024_VID_(0).webm"),
-]
-def run(cmd):
-    subprocess.run(cmd, check=True)
+ARCHIVE_URL = "https://media.rockstargames.com/VI/downloads/videos/GTAVI_Videos.zip"
+WORK, OUT = Path("work"), Path("output")
+DURATION, SHOTS = 22.5, 12
 
-def fetch(url, dest, referer=None, origin=None):
-    headers = {"User-Agent": "CinemaHubStudio/2.3 (https://github.com/Fo1rz/cinemahub-video-builder)"}
-    if referer:
-        headers["Referer"] = referer
-    if origin:
-        headers["Origin"] = origin
-    req = Request(url, headers=headers)
-    for attempt in range(6):
-        try:
-            with urlopen(req, timeout=120) as response, open(dest, "wb") as output:
-                shutil.copyfileobj(response, output)
-            return
-        except HTTPError as exc:
-            if exc.code not in (429, 500, 502, 503, 504) or attempt == 5:
-                raise
-            delay = min(90, 10 * (2 ** attempt))
-            print(f"Media host returned HTTP {exc.code}; retrying in {delay}s ({attempt+1}/5)...")
-            time.sleep(delay)
-        except (TimeoutError, URLError):
-            if attempt == 5:
-                raise
-            delay = min(90, 10 * (2 ** attempt))
-            print(f"Media download interrupted; retrying in {delay}s ({attempt+1}/5)...")
-            time.sleep(delay)
+def run(cmd, capture=False):
+    return subprocess.run(cmd, check=True, text=True, capture_output=capture)
 
-def download_commons_file(filename, dest):
-    params = urlencode({
-        "action": "query",
-        "titles": "File:" + filename,
-        "prop": "imageinfo",
-        "iiprop": "url|thumburl",
-        "format": "json",
-    })
-    api = "https://commons.wikimedia.org/w/api.php?" + params
-    req = Request(api, headers={"User-Agent": "CinemaHubStudio/2.2 (https://github.com/Fo1rz/cinemahub-video-builder)"})
-    with urlopen(req, timeout=60) as response:
-        payload = json.loads(response.read().decode("utf-8"))
-    pages = payload.get("query", {}).get("pages", {})
-    page = next(iter(pages.values()), {})
-    info = page.get("imageinfo", [])
-    if not info or not info[0].get("url"):
-        raise RuntimeError(f"Commons original media URL not found: {filename}")
-    fetch(info[0]["url"], dest, referer="https://commons.wikimedia.org/")
-    if dest.stat().st_size < 100_000:
-        raise RuntimeError(f"Commons media unexpectedly small: {filename}")
+def fetch(url, dest):
+    req = Request(url, headers={"User-Agent":"Mozilla/5.0 CinemaHubStudio/3.0", "Referer":"https://www.rockstargames.com/VI/media/videos"})
+    with urlopen(req, timeout=240) as r, open(dest,"wb") as f:
+        shutil.copyfileobj(r,f)
+    if dest.stat().st_size < 10_000_000:
+        raise RuntimeError("Rockstar media archive is unexpectedly small.")
 
+def duration(path):
+    p = run(["ffmpeg","-hide_banner","-i",str(path),"-t","0.001","-f","null","-"],capture=True)
+    m = re.search(r"Duration:\\s*(\\d+):(\\d+):([\\d.]+)",p.stderr)
+    if not m: return 0.0
+    h,mi,s=m.groups()
+    return int(h)*3600+int(mi)*60+float(s)
 
-def probe_duration(path):
-    p = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-i", str(path), "-t", "0.001", "-f", "null", "-"],
-        capture_output=True, text=True)
-    match = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)", p.stderr)
-    if not match:
-        return 0.0
-    hours, minutes, seconds = match.groups()
-    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+def scene_points(path, length):
+    p = subprocess.run(["ffmpeg","-hide_banner","-i",str(path),"-vf","select='gt(scene,0.28)',showinfo","-an","-f","null","-"],capture_output=True,text=True)
+    pts = [float(x) for x in re.findall(r"pts_time:([0-9.]+)",p.stderr)]
+    return [x for x in pts if 0.6 < x < length-1.2]
 
-def drawtext(label, start, end, size, y):
-    text_path = WORK / f"text_{int(start * 100):04d}.txt"
-    text_path.write_text(label, encoding="utf-8")
-    font = __import__("os").getenv("FONT_FILE", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
-    return (
-        "drawtext=fontfile=" + font + ":textfile=" + text_path.as_posix() +
-        f":fontcolor=white:fontsize={size}:borderw=4:bordercolor=black:"
-        "box=1:boxcolor=black@0.42:boxborderw=18:"
-        f"x=(w-text_w)/2:y={y}:enable='between(t,{start:.3f},{end:.3f})'"
-    )
+def title_filter(textfile, size, y, start, end):
+    return (f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:textfile={textfile}:"
+            f"fontcolor=white:fontsize={size}:borderw=3:bordercolor=black@0.75:shadowcolor=black@0.8:shadowx=2:shadowy=3:"
+            f"x=(w-text_w)/2:y={y}:enable='between(t,{start},{end})'")
 
 def main():
-    shutil.rmtree(WORK, ignore_errors=True)
-    shutil.rmtree(OUT, ignore_errors=True)
-    WORK.mkdir(parents=True)
-    OUT.mkdir(parents=True)
-    media = WORK / "media"
-    media.mkdir()
-
-    print("Downloading Rockstar Games official GTA VI Extended Look gameplay source...")
-    extended_look = media / "rockstar-extended-look.mp4"
-    fetch(EXTENDED_LOOK_URL, extended_look, referer="https://www.rockstargames.com/", origin="https://www.rockstargames.com")
-    if extended_look.stat().st_size < 100_000_000:
-        raise RuntimeError("Rockstar Extended Look download is unexpectedly small; stopping rather than using an incomplete source.")
-    sources = [extended_look]
-    external_sources = []
-    for i, (filename, license_name, author, license_url, source_url) in enumerate(COMMONS_FILES):
-        ext = Path(filename).suffix.lower()
-        dest = media / f"commons_miami_{i:02d}{ext}"
-        print(f"Downloading Wikimedia Commons source {i+1}/{len(COMMONS_FILES)}: {filename}")
-        download_commons_file(filename, dest)
-        external_sources.append(dest)
-        sources.append(dest)
-    # Optional supplemental sources: user-owned gameplay, licensed stock footage, or CC media.
-    extra_urls = [u.strip() for u in __import__("os").getenv("EXTRA_SOURCE_URLS", "").splitlines() if u.strip()]
-    if len(extra_urls) > 12:
-        raise RuntimeError("Maximum 12 supplemental sources.")
-    for i, url in enumerate(extra_urls):
-        if not url.startswith("https://"):
-            raise RuntimeError("Supplemental sources must be direct HTTPS media URLs.")
-        ext = Path(url.split("?")[0]).suffix.lower()
-        if ext not in VIDEO_EXTS:
-            raise RuntimeError(f"Supplemental source {i+1} must be a direct MP4/MOV/M4V/WebM file URL.")
-        dest = media / f"supplemental_{i:02d}{ext}"
-        print(f"Downloading supplemental source {i+1}/{len(extra_urls)}...")
-        fetch(url, dest)
-        external_sources.append(dest)
-        sources.append(dest)
-    usable = [(p, probe_duration(p)) for p in sources]
-    usable = [(p, d) for p, d in usable if d >= 2.0]
-    official_usable = [(p, d) for p, d in usable if p not in external_sources]
-    external_usable = [(p, d) for p, d in usable if p in external_sources]
-    if len(official_usable) < 1 or len(external_usable) < 2:
-        raise RuntimeError(f"Need at least 1 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
-    print(f"Found {len(official_usable)} official and {len(external_usable)} external videos.")
-
-    # Alternate real Miami and GTA VI footage; repeat source only with different timeline selections when needed.
-    rng = random.Random(6172026)
-    rng.shuffle(official_usable)
-    rng.shuffle(external_usable)
-    clips_dir = WORK / "shots"
-    clips_dir.mkdir()
-    playlist = []
-    for i in range(SHOT_COUNT):
-        pool = external_usable if i % 2 == 0 else official_usable
-        src, src_duration = pool[(i // 2) % len(pool)]
-        shot_duration = SHOT_LEN
-        max_start = max(0.0, src_duration - shot_duration - 0.05)
-        # Spread repeated visits to a source across its timeline instead of always taking its opening.
-        visit = (i // 2) // len(pool)
-        visits = (SHOT_COUNT // 2 + len(pool) - 1) // len(pool)
-        fraction = (visit + rng.uniform(0.08, 0.92)) / max(1, visits)
-        start = max_start * min(1.0, fraction)
-        crop_bias = rng.choice([0.22, 0.32, 0.42, 0.50, 0.58, 0.68, 0.78])
-        speed = rng.choice([0.90, 0.96, 1.00, 1.06, 1.12])
-        # Alternating crop, speed and grade creates a visibly edited sequence, not a repeated slideshow.
-        vf = (
-            "scale=1200:2134:force_original_aspect_ratio=increase,"
-            f"crop=1080:1920:x='(iw-ow)*{crop_bias}':y=(ih-oh)/2,"
-            f"setpts={1.0/speed:.5f}*PTS,tpad=stop_mode=clone:stop_duration=0.35,fps=30,"
-            f"eq=contrast={rng.uniform(1.04,1.12):.3f}:saturation={rng.uniform(1.10,1.28):.3f}:brightness={rng.uniform(-0.015,0.012):.3f},"
-            "unsharp=5:5:0.45:3:3:0.0,format=yuv420p"
-        )
-        target = clips_dir / f"shot_{i:02d}.mp4"
-        run([
-            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-            "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{shot_duration:.3f}",
-            "-vf", vf, "-an", "-c:v", "libx264", "-preset", "veryfast",
-            "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
-            "-movflags", "+faststart", str(target)
-        ])
-        playlist.append(target)
-        print(f"Shot {i+1:02d}/{SHOT_COUNT}: {src.name} @ {start:.1f}s, speed {speed:.2f}x")
-
-    concat = clips_dir / "concat.txt"
-    concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in playlist))
-    silent = WORK / "montage.mp4"
-    run([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "concat", "-safe", "0", "-i", str(concat), "-t", str(DURATION),
-        "-vf", "fps=30,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast",
-        "-crf", "18", "-an", "-movflags", "+faststart", str(silent)
-    ])
-
-    # Keep typography deliberately sparse: one opening hook and one closing punchline.
-    filters = [
-        drawtext("ЭТО МАЙАМИ ИЛИ VICE CITY?", 0.15, 1.75, 49, "h*0.13"),
-        drawtext("ГДЕ РЕАЛЬНОСТЬ?", 20.55, 22.35, 64, "h*0.78"),
-    ]
-    final = OUT / "cinemahub-gta6.mp4"
-    run([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(silent),
-        "-vf", ",".join(filters), "-c:v", "libx264", "-preset", "veryfast",
-        "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", "-an",
-        "-movflags", "+faststart", str(final)
-    ])
-
-    cover = OUT / "cover.jpg"
-    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", "3.2",
-         "-i", str(final), "-frames:v", "1", "-q:v", "2", str(cover)])
-    (OUT / "publication-pack.txt").write_text(
-        "TITLE: Майами или Vice City?\n"
-        "DURATION: 22.5s\nFORMAT: 1080x1920, 30 fps\n"
-        "EDIT: 18-shot fast real-Miami-vs-Vice-City montage, alternating stock and game footage, speed changes and color grading\n"
-        "MUSIC: Add a currently trending, suitable sound from TikTok's in-app library.\n\n"
-        "DESCRIPTION: Сначала кажется, что это реальный Майами. А потом понимаешь — это Vice City. 🌴🔥 Какой кадр выглядит реалистичнее?\n\n"
-        "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\n\n"
-        "SOURCE: Rockstar Games promotional media + Wikimedia Commons footage.\n"
-        "COMMONS CREDITS:\n" + "\n".join(f"- {name} — {author}; {license_name}; {license_url}; {source_url}" for name, license_name, author, license_url, source_url in COMMONS_FILES) + "\n"
-        "NOTE: Check Rockstar's current fan-content policy before monetizing or using promotional footage commercially.\n",
-        encoding="utf-8"
-    )
+    shutil.rmtree(WORK,ignore_errors=True); shutil.rmtree(OUT,ignore_errors=True)
+    WORK.mkdir(); OUT.mkdir()
+    archive=WORK/"rockstar-gta6-media.zip"
+    print("Downloading Rockstar's official GTA VI media pack...")
+    fetch(ARCHIVE_URL,archive)
+    media=WORK/"media"; media.mkdir()
+    with zipfile.ZipFile(archive) as z:
+        vids=[]
+        for info in z.infolist():
+            if Path(info.filename).suffix.lower() in {".mp4",".mov",".m4v",".webm"} and not info.is_dir():
+                target=media/Path(info.filename).name
+                with z.open(info) as src, open(target,"wb") as dst: shutil.copyfileobj(src,dst)
+                if target.stat().st_size>100_000: vids.append(target)
+    if len(vids)<6: raise RuntimeError(f"Expected Rockstar trailer and character clips; found only {len(vids)} video files.")
+    print("Official source videos:",*[p.name for p in vids],sep="\\n - ")
+    preferred=("trailer 2","jason","lucia","cal hampton","boobie","dre","real dimez","raul","brian","trailer 1","launch")
+    def rank(p):
+        n=p.name.lower()
+        for i,k in enumerate(preferred):
+            if k in n: return i
+        return 99
+    vids.sort(key=lambda p:(rank(p),p.name.lower()))
+    meta=[]
+    for p in vids:
+        d=duration(p)
+        if d>2.5: meta.append((p,d,scene_points(p,d)))
+    if len(meta)<6: raise RuntimeError("Not enough readable official Rockstar videos after validation.")
+    shot_len=DURATION/SHOTS
+    # Prefer a different official asset for each cut; revisit only the main trailer if needed.
+    chosen=[]
+    for i in range(SHOTS):
+        src,d,scenes=meta[i%len(meta)]
+        valid=[x for x in scenes if x<d-shot_len-0.15]
+        if valid:
+            # Choose varied moments across the source's scene changes.
+            idx=min(len(valid)-1, int((i//len(meta)+0.5)*len(valid)/max(1,SHOTS//len(meta)+1)))
+            start=max(0.0,min(d-shot_len-0.05,valid[idx]-0.35))
+        else:
+            start=max(0.0,(d-shot_len)*((i%3)+1)/4)
+        chosen.append((src,start,d))
+    # One clean vertical treatment, no unrelated footage and no repeated source in adjacent shots.
+    clips=[]
+    for i,(src,start,d) in enumerate(chosen):
+        out=WORK/f"shot_{i:02d}.mp4"
+        crop_x=["(iw-ow)*0.42","(iw-ow)*0.50","(iw-ow)*0.58"][i%3]
+        vf=( "scale=1200:2134:force_original_aspect_ratio=increase,"
+             f"crop=1080:1920:x='{crop_x}':y=(ih-oh)/2,"
+             "fps=30,eq=contrast=1.09:saturation=1.16:brightness=-0.004,"
+             "unsharp=5:5:0.35:3:3:0,format=yuv420p")
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{start:.3f}","-i",str(src),"-t",f"{shot_len:.3f}",
+             "-vf",vf,"-an","-c:v","libx264","-preset","medium","-crf","17","-r","30","-pix_fmt","yuv420p","-movflags","+faststart",str(out)])
+        clips.append(out)
+        print(f"Cut {i+1:02d}: {src.name} at {start:.2f}s")
+    concat=WORK/"concat.txt"
+    concat.write_text("".join(f"file '{p.resolve().as_posix()}'\\n" for p in clips))
+    silent=WORK/"montage.mp4"
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(DURATION),
+         "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","17","-an","-movflags","+faststart",str(silent)])
+    # Sparse editorial typography: one hook, one closing question.
+    hook=WORK/"hook.txt"; hook.write_text("VICE CITY НЕ СПИТ",encoding="utf-8")
+    end=WORK/"end.txt"; end.write_text("ТЫ ГОТОВ?",encoding="utf-8")
+    vf=",".join([title_filter(hook.as_posix(),58,"h*0.12",0.12,1.65),title_filter(end.as_posix(),72,"h*0.78",20.7,22.35)])
+    final=OUT/"cinemahub-gta6.mp4"
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-vf",vf,"-c:v","libx264","-preset","medium","-crf","17","-pix_fmt","yuv420p","-r","30","-an","-movflags","+faststart",str(final)])
+    cover=OUT/"cover.jpg"
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","4.0","-i",str(final),"-frames:v","1","-q:v","2",str(cover)])
+    (OUT/"publication-pack.txt").write_text(
+        "TITLE: VICE CITY НЕ СПИТ\\nDURATION: 22.5s\\nFORMAT: 1080x1920, 30 fps, H.264\\n"
+        "EDIT: 12-shot cinematic montage using only official Rockstar GTA VI media; no real-world stock footage.\\n"
+        "AUDIO: No music embedded. Add a currently rising sound from TikTok's in-app library and align the first bass hit with the first cut.\\n\\n"
+        "DESCRIPTION: Завтра улицы Vice City оживут по-настоящему. 🌴🔥 Ты готов?\\n"
+        "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\\n\\n"
+        "SOURCE: Official Rockstar Games GTA VI media download pack: https://www.rockstargames.com/VI/media/videos\\n"
+        "NOTE: Follow Rockstar's current fan-content policy and TikTok's copyright rules.\\n",encoding="utf-8")
+    if final.stat().st_size<2_000_000: raise RuntimeError("Rendered MP4 is unexpectedly small.")
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
-    print(f"Cover: {cover} ({cover.stat().st_size} bytes)")
-    print("No music embedded; add a suitable sound from TikTok's in-app library.")
-
-if __name__ == "__main__":
-    main()
+if __name__=="__main__": main()
