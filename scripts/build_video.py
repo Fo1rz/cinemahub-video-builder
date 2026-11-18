@@ -88,7 +88,7 @@ def main():
         vf = (
             "scale=1200:2134:force_original_aspect_ratio=increase,"
             f"crop=1080:1920:x='(iw-ow)*{crop_bias}':y=(ih-oh)/2,"
-            f"setpts={1.0/speed:.5f}*PTS,fps=30,"
+            f"setpts={1.0/speed:.5f}*PTS,tpad=stop_mode=clone:stop_duration=0.35,fps=30,"
             f"eq=contrast={rng.uniform(1.04,1.12):.3f}:saturation={rng.uniform(1.10,1.28):.3f}:brightness={rng.uniform(-0.015,0.012):.3f},"
             "unsharp=5:5:0.45:3:3:0.0,format=yuv420p"
         )
