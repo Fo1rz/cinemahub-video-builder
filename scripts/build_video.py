@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-OFFICIAL_ZIP = "https://media-rockstargames-com.akamaized.net/VI/downloads/videos/GTAVI_Videos.zip"
+OFFICIAL_ZIP = "https://media.rockstargames.com/VI/downloads/videos/GTAVI_Videos.zip"
 WORK = Path("work")
 OUT = Path("output")
 ZIP_PATH = WORK / "rockstar-media.zip"
@@ -135,8 +135,8 @@ def main():
     usable = [(p, d) for p, d in usable if d >= 2.0]
     official_usable = [(p, d) for p, d in usable if p not in external_sources]
     external_usable = [(p, d) for p, d in usable if p in external_sources]
-    if len(official_usable) < 1 or len(external_usable) < 2:
-        raise RuntimeError(f"Need at least 1 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
+    if len(official_usable) < 4 or len(external_usable) < 2:
+        raise RuntimeError(f"Need at least 4 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
     print(f"Found {len(official_usable)} official and {len(external_usable)} external videos.")
 
     # Alternate real Miami and GTA VI footage; repeat source only with different timeline selections when needed.
