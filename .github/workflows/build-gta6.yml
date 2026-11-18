@@ -1,0 +1,36 @@
+name: Build GTA VI TikTok
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-gta6.yml"
+      - "scripts/**"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Download official Rockstar media and assemble vertical edit
+        run: python3 scripts/build_video.py
+
+      - name: Upload MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinemahub-gta6-video
+          path: output/cinemahub-gta6.mp4
+          if-no-files-found: error
+          retention-days: 7
