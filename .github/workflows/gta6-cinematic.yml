@@ -1,0 +1,40 @@
+name: Build GTA VI Cinematic TikTok
+
+on:
+  push:
+    paths:
+      - "scripts/build_video.py"
+      - ".github/workflows/gta6-cinematic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          ffmpeg -version | head -n 1
+      - name: Validate Python
+        run: python3 -m py_compile scripts/build_video.py
+      - name: Render new cinematic GTA VI montage
+        run: python3 scripts/build_video.py
+      - name: Verify output format and duration
+        run: |
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of default=noprint_wrappers=1 output/cinemahub-gta6.mp4
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output/cinemahub-gta6.mp4
+          test -s output/cover.jpg
+          test -s output/publication-pack.txt
+      - name: Upload finished video package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinemahub-gta6-cinematic-${{ github.run_number }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 14
