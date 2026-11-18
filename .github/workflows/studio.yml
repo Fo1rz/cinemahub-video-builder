@@ -65,6 +65,31 @@ permissions:
   contents: read
 
 jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Run full synthetic video build
+        env:
+          CINEMAHUB_SELF_TEST: "1"
+          PROJECT_TITLE: "CinemaHub automated test"
+          CATEGORY: games
+          DURATION: "15"
+          PACE: fast
+        run: python3 scripts/studio_build.py
+      - name: Upload self-test render for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinemahub-self-test-${{ github.run_number }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 3
+
   validate:
     runs-on: ubuntu-latest
     steps:
