@@ -7,7 +7,7 @@ WORK, OUT = Path("work"), Path("output")
 DURATION, SHOTS = 22.5, 12
 SOURCE = "https://media-rockstargames-com.akamaized.net/VI/downloads/videos/GTAVI_An_Extended_Look/GTAVI_An_Extended_Look.mp4"
 # Spread excerpts through the official 26-minute in-game showcase.
-TIMES = [38, 104, 188, 276, 382, 493, 622, 758, 896, 1034, 1190, 1480]
+TIMES = [260, 324, 485, 540, 688, 750, 790, 944, 1061, 1120, 1402, 1511]
 
 def run(cmd):
     subprocess.run(cmd,check=True)
@@ -37,7 +37,7 @@ def main():
     silent=WORK/"montage.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(DURATION),
          "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","16","-an","-movflags","+faststart",str(silent)])
-    hook=WORK/"hook.txt"; hook.write_text("VICE CITY. ТВОЯ ИСТОРИЯ НАЧИНАЕТСЯ.",encoding="utf-8")
+    hook=WORK/"hook.txt"; hook.write_text("ОДНА НОЧЬ. ОДИН ГОРОД. НИКАКИХ ПРАВИЛ.",encoding="utf-8")
     end=WORK/"end.txt"; end.write_text("19.11.2026",encoding="utf-8")
     font=__import__("os").getenv("FONT_FILE","/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
     vf=",".join([
@@ -49,7 +49,7 @@ def main():
     cover=OUT/"cover.jpg"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","4.0","-i",str(final),"-frames:v","1","-q:v","2",str(cover)])
     (OUT/"publication-pack.txt").write_text(
-        "TITLE: VICE CITY — ТВОЯ ИСТОРИЯ НАЧИНАЕТСЯ\nDURATION: 22.5s\nFORMAT: 1080x1920, 30 fps, H.264\n"
+        "TITLE: VICE CITY — НИКАКИХ ПРАВИЛ\nDURATION: 22.5s\nFORMAT: 1080x1920, 30 fps, H.264\n"
         "EDIT: 12 curated excerpts from Rockstar's official 4K in-game Extended Look; no real-world footage.\n"
         "AUDIO: No music embedded. Add a rising GTA / cinematic sound from TikTok's in-app library.\n\n"
         "DESCRIPTION: Завтра начинается новая глава. Добро пожаловать в Vice City. 🌴🔥\n"
