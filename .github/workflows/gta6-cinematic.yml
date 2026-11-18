@@ -26,11 +26,15 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure FFmpeg and fonts are available
+      - name: Install portable FFmpeg
         run: |
-          if ! command -v ffmpeg >/dev/null 2>&1; then
-            sudo timeout 180 apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
-          fi
+          python3 -m pip install --user --disable-pip-version-check imageio-ffmpeg matplotlib
+          mkdir -p "$HOME/.local/bin"
+          FFMPEG_BIN="$(python3 -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
+          ln -sf "$FFMPEG_BIN" "$HOME/.local/bin/ffmpeg"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          FONT_FILE="$(python3 -c 'from matplotlib import font_manager; print(font_manager.findfont("DejaVu Sans:style=Bold"))')"
+          echo "FONT_FILE=$FONT_FILE" >> "$GITHUB_ENV"
           ffmpeg -version | head -n 1
       - name: Validate Python
         run: python3 -m py_compile scripts/build_video.py
@@ -40,8 +44,20 @@ jobs:
         run: python3 scripts/build_video.py
       - name: Verify output format and duration
         run: |
-          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of default=noprint_wrappers=1 output/cinemahub-gta6.mp4
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output/cinemahub-gta6.mp4
+          python3 - <<'PY'
+          import re, subprocess
+          p = subprocess.run(["ffmpeg", "-hide_banner", "-i", "output/cinemahub-gta6.mp4", "-t", "0.001", "-f", "null", "-"], capture_output=True, text=True)
+          log = p.stderr
+          assert "Video: h264" in log, log
+          assert "1080x1920" in log, log
+          assert re.search(r"\\b30 fps\\b", log) or re.search(r"\\b30 tbr\\b", log), log
+          m = re.search(r"Duration:\\s*(\\d+):(\\d+):([\\d.]+)", log)
+          assert m, log
+          h, minute, second = m.groups()
+          duration = int(h)*3600 + int(minute)*60 + float(second)
+          assert 22.0 <= duration <= 23.0, duration
+          print(f"Verified H.264 1080x1920 30fps, {duration:.2f}s")
+          PY
           test -s output/cover.jpg
           test -s output/publication-pack.txt
       - name: Upload finished video package
