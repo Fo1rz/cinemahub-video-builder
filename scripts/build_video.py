@@ -3,6 +3,7 @@
 import shutil
 import subprocess
 import random
+import re
 import json
 import time
 from urllib.error import HTTPError, URLError
@@ -73,13 +74,13 @@ def download_commons_file(filename, dest):
 
 def probe_duration(path):
     p = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-        capture_output=True, text=True, check=True)
-    try:
-        return float(p.stdout.strip())
-    except ValueError:
+        ["ffmpeg", "-hide_banner", "-i", str(path), "-t", "0.001", "-f", "null", "-"],
+        capture_output=True, text=True)
+    match = re.search(r"Duration:\s*(\\d+):(\\d+):([\\d.]+)", p.stderr)
+    if not match:
         return 0.0
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 def drawtext(label, start, end, size, y):
     text_path = WORK / f"text_{int(start * 100):04d}.txt"
