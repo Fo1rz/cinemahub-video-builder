@@ -4,6 +4,8 @@ import shutil
 import subprocess
 import zipfile
 import random
+import re
+import html
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -15,6 +17,11 @@ VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm"}
 DURATION = 22.5
 SHOT_COUNT = 18
 SHOT_LEN = DURATION / SHOT_COUNT
+PEXELS_PAGE_URLS = [
+    "https://www.pexels.com/video/aerial-view-of-miami-waterfront-skyline-37461918/",
+    "https://www.pexels.com/video/vibrant-city-skyline-and-traffic-lights-at-night-30684445/",
+    "https://www.pexels.com/video/vibrant-night-urban-cityscape-with-traffic-36443796/",
+]
 
 def run(cmd):
     subprocess.run(cmd, check=True)
@@ -23,6 +30,21 @@ def fetch(url, dest):
     req = Request(url, headers={"User-Agent": "Mozilla/5.0 CinemaHubStudio/2.0"})
     with urlopen(req, timeout=90) as response, open(dest, "wb") as f:
         shutil.copyfileobj(response, f)
+
+def resolve_pexels_page(page_url, dest):
+    req = Request(page_url, headers={"User-Agent": "Mozilla/5.0 CinemaHubStudio/2.1"})
+    with urlopen(req, timeout=90) as response:
+        page = response.read().decode("utf-8", errors="replace")
+    page = html.unescape(page).replace("\\/", "/").replace("\\u0026", "&")
+    matches = re.findall(r'https?://videos\.pexels\.com/video-files/[0-9]+/[^"\'<>\s]+?\.mp4(?:\?[^"\'<>\s]*)?', page)
+    urls = list(dict.fromkeys(matches))
+    if not urls:
+        raise RuntimeError(f"Could not resolve direct MP4 from Pexels page: {page_url}")
+    urls.sort(key=lambda u: ("hd_" in u or "4k" in u, len(u)), reverse=True)
+    fetch(urls[0], dest)
+    if dest.stat().st_size < 100_000:
+        raise RuntimeError(f"Pexels media unexpectedly small: {page_url}")
+
 
 def probe_duration(path):
     p = subprocess.run(
@@ -61,6 +83,13 @@ def main():
         archive.extractall(media)
 
     sources = sorted(p for p in media.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS)
+    external_sources = []
+    for i, page_url in enumerate(PEXELS_PAGE_URLS):
+        dest = media / f"pexels_miami_{i:02d}.mp4"
+        print(f"Resolving Pexels Miami footage {i+1}/{len(PEXELS_PAGE_URLS)}...")
+        resolve_pexels_page(page_url, dest)
+        external_sources.append(dest)
+        sources.append(dest)
     # Optional supplemental sources: user-owned gameplay, licensed stock footage, or CC media.
     extra_urls = [u.strip() for u in __import__("os").getenv("EXTRA_SOURCE_URLS", "").splitlines() if u.strip()]
     if len(extra_urls) > 12:
@@ -74,21 +103,26 @@ def main():
         dest = media / f"supplemental_{i:02d}{ext}"
         print(f"Downloading supplemental source {i+1}/{len(extra_urls)}...")
         fetch(url, dest)
+        external_sources.append(dest)
         sources.append(dest)
     usable = [(p, probe_duration(p)) for p in sources]
     usable = [(p, d) for p, d in usable if d >= 2.0]
-    if len(usable) < 3:
-        raise RuntimeError(f"Only {len(usable)} usable official videos found; need at least three distinct sources.")
-    print(f"Found {len(usable)} usable videos across official and supplemental sources.")
+    official_usable = [(p, d) for p, d in usable if p not in external_sources]
+    external_usable = [(p, d) for p, d in usable if p in external_sources]
+    if len(official_usable) < 2 or len(external_usable) < 2:
+        raise RuntimeError(f"Need at least 2 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
+    print(f"Found {len(official_usable)} official and {len(external_usable)} external videos.")
 
-    # Deterministic shuffle gives a different editorial order from alphabetical archive order.
+    # Alternate real Miami and GTA VI footage throughout the montage.
     rng = random.Random(6172026)
-    rng.shuffle(usable)
+    rng.shuffle(official_usable)
+    rng.shuffle(external_usable)
     clips_dir = WORK / "shots"
     clips_dir.mkdir()
     playlist = []
     for i in range(SHOT_COUNT):
-        src, src_duration = usable[i % len(usable)]
+        pool = external_usable if i % 2 == 0 else official_usable
+        src, src_duration = pool[(i // 2) % len(pool)]
         shot_duration = SHOT_LEN
         max_start = max(0.0, src_duration - shot_duration - 0.05)
         # Spread repeated visits to a source across its timeline instead of always taking its opening.
@@ -129,8 +163,8 @@ def main():
 
     # Keep typography deliberately sparse: one opening hook and one closing punchline.
     filters = [
-        drawtext("VICE CITY НЕ БУДЕТ ПРЕЖНИМ", 0.15, 1.75, 49, "h*0.13"),
-        drawtext("ТЫ В ИГРЕ?", 20.55, 22.35, 64, "h*0.78"),
+        drawtext("ЭТО МАЙАМИ ИЛИ VICE CITY?", 0.15, 1.75, 49, "h*0.13"),
+        drawtext("ГДЕ РЕАЛЬНОСТЬ?", 20.55, 22.35, 64, "h*0.78"),
     ]
     final = OUT / "cinemahub-gta6.mp4"
     run([
@@ -144,13 +178,13 @@ def main():
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", "3.2",
          "-i", str(final), "-frames:v", "1", "-q:v", "2", str(cover)])
     (OUT / "publication-pack.txt").write_text(
-        "TITLE: Vice City не будет прежним\n"
+        "TITLE: Майами или Vice City?\n"
         "DURATION: 22.5s\nFORMAT: 1080x1920, 30 fps\n"
-        "EDIT: 18-shot fast cinematic montage, varied source moments, speed changes and color grading\n"
+        "EDIT: 18-shot fast real-Miami-vs-Vice-City montage, alternating stock and game footage, speed changes and color grading\n"
         "MUSIC: Add a currently trending, suitable sound from TikTok's in-app library.\n\n"
-        "DESCRIPTION: Это уже не просто GTA. Это Vice City. 🌴🔥 Какой момент из трейлеров зацепил тебя больше всего?\n\n"
+        "DESCRIPTION: Сначала кажется, что это реальный Майами. А потом понимаешь — это Vice City. 🌴🔥 Какой кадр выглядит реалистичнее?\n\n"
         "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\n\n"
-        "SOURCE: Official Rockstar Games promotional media archive.\n"
+        "SOURCE: Rockstar Games promotional media + free Pexels stock footage.\n"
         "NOTE: Check Rockstar's current fan-content policy before monetizing or using promotional footage commercially.\n",
         encoding="utf-8"
     )
