@@ -11,12 +11,13 @@ Open Actions → CinemaHub Studio → Run workflow and provide:
 - Direct HTTPS links to video files you have permission to use (one URL per line; MP4, MOV, M4V or WebM; up to 20 clips)
 - Optional publication description and hashtags
 - Optional opening hook text displayed prominently for the first 2.8 seconds (up to 120 characters)
+- Selectable montage pacing: fast (1.6s excerpts), balanced (2.4s), or cinematic (3.6s); excerpts are distributed across each supplied source
 - Optional Russian narration script with selectable male/female voice (Dmitry/Svetlana); narration must fit the selected video duration (maximum 2000 characters)
 - Automatically generated Russian subtitles are burned into the MP4; separate MP3 and VTT files are included in the artifact
 - Optional direct HTTPS music file only if you have the rights to use it; music is mixed quietly under narration
 - Target duration (15, 22, 30, 45 or 60 seconds)
 
-The opening hook is rendered as a high-contrast title card over the footage for the first 2.8 seconds. The workflow produces an MP4 (1080×1920, 30 fps), a JPG cover frame and a publication pack with title, description and hashtags. Optional Russian text-to-speech uses the free `edge-tts` package and requires internet access. The package is uploaded as a GitHub Actions artifact for 14 days.
+The opening hook is rendered as a high-contrast title card over the footage for the first 2.8 seconds. Montage pace controls excerpt length and the rhythm of scene changes. The workflow produces an MP4 (1080×1920, 30 fps), a JPG cover frame and a publication pack with title, description and hashtags. Optional Russian text-to-speech uses the free `edge-tts` package and requires internet access. The package is uploaded as a GitHub Actions artifact for 14 days.
 
 ## Important limitations
 - This is an assembly studio, not a footage search engine or a TikTok uploader. You or the assistant must supply direct media-file URLs; ordinary YouTube/TikTok page URLs are not direct video files.
