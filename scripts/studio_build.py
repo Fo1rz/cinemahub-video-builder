@@ -79,7 +79,7 @@ def main():
     if not audio_inputs:
         shutil.copy2(silent, final)
     elif len(audio_inputs) == 1:
-        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio_inputs[0]),"-t",str(duration),"-map","0:v:0","-map","1:a:0","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",str(final)])
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio_inputs[0]),"-t",str(duration),"-map","0:v:0","-map","1:a:0","-af","apad","-c:v","copy","-c:a","aac","-b:a","192k","-movflags","+faststart",str(final)])
     else:
         run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-i",str(audio_inputs[0]),"-stream_loop","-1","-i",str(audio_inputs[1]),"-filter_complex","[1:a]volume=1.0[voice];[2:a]volume=0.16[music];[voice][music]amix=inputs=2:duration=longest:dropout_transition=2[a]","-t",str(duration),"-map","0:v:0","-map","[a]","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",str(final)])
     cover = OUT / "cover.jpg"
