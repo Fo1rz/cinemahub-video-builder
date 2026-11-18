@@ -2,7 +2,6 @@
 """CinemaHub GTA VI: fast, varied, cinematic vertical montage from Rockstar's official media archive."""
 import shutil
 import subprocess
-import zipfile
 import random
 import json
 import time
@@ -11,10 +10,9 @@ from urllib.parse import urlencode
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-OFFICIAL_ZIP = "https://media.rockstargames.com/VI/downloads/videos/GTAVI_Videos.zip"
+EXTENDED_LOOK_URL = "https://videos-rockstargames-com.akamaized.net/v4/oats0rtr/flv/en-us-2160p.mp4"
 WORK = Path("work")
 OUT = Path("output")
-ZIP_PATH = WORK / "rockstar-media.zip"
 VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm"}
 DURATION = 22.5
 SHOT_COUNT = 18
@@ -100,14 +98,12 @@ def main():
     media = WORK / "media"
     media.mkdir()
 
-    print("Downloading Rockstar Games official GTA VI media archive...")
-    fetch(OFFICIAL_ZIP, ZIP_PATH)
-    if ZIP_PATH.stat().st_size < 1_000_000:
-        raise RuntimeError("Rockstar archive is unexpectedly small; stopping rather than making an incomplete edit.")
-    with zipfile.ZipFile(ZIP_PATH) as archive:
-        archive.extractall(media)
-
-    sources = sorted(p for p in media.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS)
+    print("Downloading Rockstar Games official GTA VI Extended Look gameplay source...")
+    extended_look = media / "rockstar-extended-look.mp4"
+    fetch(EXTENDED_LOOK_URL, extended_look, referer="https://www.rockstargames.com/")
+    if extended_look.stat().st_size < 100_000_000:
+        raise RuntimeError("Rockstar Extended Look download is unexpectedly small; stopping rather than using an incomplete source.")
+    sources = [extended_look]
     external_sources = []
     for i, (filename, license_name, author, license_url, source_url) in enumerate(COMMONS_FILES):
         ext = Path(filename).suffix.lower()
@@ -135,8 +131,8 @@ def main():
     usable = [(p, d) for p, d in usable if d >= 2.0]
     official_usable = [(p, d) for p, d in usable if p not in external_sources]
     external_usable = [(p, d) for p, d in usable if p in external_sources]
-    if len(official_usable) < 4 or len(external_usable) < 2:
-        raise RuntimeError(f"Need at least 4 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
+    if len(official_usable) < 1 or len(external_usable) < 2:
+        raise RuntimeError(f"Need at least 1 official and 2 external videos; found {len(official_usable)} and {len(external_usable)}.")
     print(f"Found {len(official_usable)} official and {len(external_usable)} external videos.")
 
     # Alternate real Miami and GTA VI footage; repeat source only with different timeline selections when needed.
