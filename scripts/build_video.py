@@ -27,11 +27,11 @@ COMMONS_FILES = [
 def run(cmd):
     subprocess.run(cmd, check=True)
 
-def fetch(url, dest):
-    req = Request(url, headers={
-        "User-Agent": "CinemaHubStudio/2.3 (https://github.com/Fo1rz/cinemahub-video-builder)",
-        "Referer": "https://commons.wikimedia.org/",
-    })
+def fetch(url, dest, referer=None):
+    headers = {"User-Agent": "CinemaHubStudio/2.3 (https://github.com/Fo1rz/cinemahub-video-builder)"}
+    if referer:
+        headers["Referer"] = referer
+    req = Request(url, headers=headers)
     for attempt in range(6):
         try:
             with urlopen(req, timeout=120) as response, open(dest, "wb") as output:
@@ -67,7 +67,7 @@ def download_commons_file(filename, dest):
     info = page.get("imageinfo", [])
     if not info or not info[0].get("url"):
         raise RuntimeError(f"Commons original media URL not found: {filename}")
-    fetch(info[0]["url"], dest)
+    fetch(info[0]["url"], dest, referer="https://commons.wikimedia.org/")
     if dest.stat().st_size < 100_000:
         raise RuntimeError(f"Commons media unexpectedly small: {filename}")
 
