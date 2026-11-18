@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-EXTENDED_LOOK_URL = "https://videos-rockstargames-com.akamaized.net/v4/oats0rtr/flv/en-us-2160p.mp4"
+EXTENDED_LOOK_URL = "https://videos-rockstargames-com.akamaized.net/v4/rk721912/flv/en-us-2160p.mp4"
 WORK = Path("work")
 OUT = Path("output")
 VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm"}
@@ -24,10 +24,12 @@ COMMONS_FILES = [
 def run(cmd):
     subprocess.run(cmd, check=True)
 
-def fetch(url, dest, referer=None):
+def fetch(url, dest, referer=None, origin=None):
     headers = {"User-Agent": "CinemaHubStudio/2.3 (https://github.com/Fo1rz/cinemahub-video-builder)"}
     if referer:
         headers["Referer"] = referer
+    if origin:
+        headers["Origin"] = origin
     req = Request(url, headers=headers)
     for attempt in range(6):
         try:
@@ -100,7 +102,7 @@ def main():
 
     print("Downloading Rockstar Games official GTA VI Extended Look gameplay source...")
     extended_look = media / "rockstar-extended-look.mp4"
-    fetch(EXTENDED_LOOK_URL, extended_look, referer="https://www.rockstargames.com/")
+    fetch(EXTENDED_LOOK_URL, extended_look, referer="https://www.rockstargames.com/", origin="https://www.rockstargames.com")
     if extended_look.stat().st_size < 100_000_000:
         raise RuntimeError("Rockstar Extended Look download is unexpectedly small; stopping rather than using an incomplete source.")
     sources = [extended_look]
