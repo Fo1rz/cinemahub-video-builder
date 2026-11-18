@@ -56,7 +56,6 @@ def download_commons_file(filename, dest):
         "titles": "File:" + filename,
         "prop": "imageinfo",
         "iiprop": "url|thumburl",
-        "iiurlwidth": 1280,
         "format": "json",
     })
     api = "https://commons.wikimedia.org/w/api.php?" + params
@@ -68,7 +67,7 @@ def download_commons_file(filename, dest):
     info = page.get("imageinfo", [])
     if not info or not info[0].get("url"):
         raise RuntimeError(f"Commons original media URL not found: {filename}")
-    fetch(info[0].get("thumburl") or info[0]["url"], dest, referer="https://commons.wikimedia.org/")
+    fetch(info[0]["url"], dest, referer="https://commons.wikimedia.org/")
     if dest.stat().st_size < 100_000:
         raise RuntimeError(f"Commons media unexpectedly small: {filename}")
 
