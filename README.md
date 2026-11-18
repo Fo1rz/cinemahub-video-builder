@@ -10,7 +10,8 @@ Open Actions → CinemaHub Studio → Run workflow and provide:
 - Project title and category (games, movies, series, trailers)
 - Direct HTTPS links to video files you have permission to use (one URL per line; MP4, MOV, M4V or WebM; up to 20 clips)
 - Optional publication description and hashtags
-- Optional Russian narration script with selectable male/female voice (Dmitry/Svetlana)
+- Optional Russian narration script with selectable male/female voice (Dmitry/Svetlana); narration must fit the selected video duration
+- Automatically generated Russian subtitles are burned into the MP4; separate MP3 and VTT files are included in the artifact
 - Optional direct HTTPS music file only if you have the rights to use it; music is mixed quietly under narration
 - Target duration (15, 22, 30, 45 or 60 seconds)
 
