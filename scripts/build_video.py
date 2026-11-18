@@ -21,6 +21,10 @@ PEXELS_PAGE_URLS = [
     "https://www.pexels.com/video/aerial-view-of-miami-waterfront-skyline-37461918/",
     "https://www.pexels.com/video/vibrant-city-skyline-and-traffic-lights-at-night-30684445/",
     "https://www.pexels.com/video/vibrant-night-urban-cityscape-with-traffic-36443796/",
+    "https://www.pexels.com/video/aerial-view-of-miami-beach-lined-with-palm-trees-31673932/",
+    "https://www.pexels.com/video/traffic-in-the-city-of-miami-9620604/",
+    "https://www.pexels.com/video/aerial-night-view-of-city-traffic-and-skyline-30508009/",
+    "https://www.pexels.com/video/driving-on-a-highway-at-night-15270404/",
 ]
 
 def run(cmd):
@@ -126,8 +130,8 @@ def main():
         shot_duration = SHOT_LEN
         max_start = max(0.0, src_duration - shot_duration - 0.05)
         # Spread repeated visits to a source across its timeline instead of always taking its opening.
-        visit = i // len(usable)
-        visits = (SHOT_COUNT + len(usable) - 1) // len(usable)
+        visit = (i // 2) // len(pool)
+        visits = (SHOT_COUNT // 2 + len(pool) - 1) // len(pool)
         fraction = (visit + rng.uniform(0.08, 0.92)) / max(1, visits)
         start = max_start * min(1.0, fraction)
         crop_bias = rng.choice([0.22, 0.32, 0.42, 0.50, 0.58, 0.68, 0.78])
@@ -185,6 +189,7 @@ def main():
         "DESCRIPTION: Сначала кажется, что это реальный Майами. А потом понимаешь — это Vice City. 🌴🔥 Какой кадр выглядит реалистичнее?\n\n"
         "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\n\n"
         "SOURCE: Rockstar Games promotional media + free Pexels stock footage.\n"
+        "PEXELS: " + "\\n".join(PEXELS_PAGE_URLS) + "\\n"
         "NOTE: Check Rockstar's current fan-content policy before monetizing or using promotional footage commercially.\n",
         encoding="utf-8"
     )
