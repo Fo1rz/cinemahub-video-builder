@@ -1,0 +1,70 @@
+name: CinemaHub Studio
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Project title"
+        required: true
+        type: string
+      category:
+        description: "Content category"
+        required: true
+        type: choice
+        options: [games, movies, series, trailers]
+      source_urls:
+        description: "Direct HTTPS links to permitted MP4/MOV/M4V/WebM files, one per line"
+        required: true
+        type: string
+      hashtags:
+        description: "TikTok hashtags"
+        required: false
+        default: "#CinemaHub #Gaming #Movies"
+        type: string
+      description:
+        description: "Post description"
+        required: false
+        default: ""
+        type: string
+      music_url:
+        description: "Optional direct HTTPS audio URL that you have rights to use"
+        required: false
+        type: string
+      duration:
+        description: "Video duration in seconds"
+        required: true
+        default: "22"
+        type: choice
+        options: ["15", "22", "30", "45", "60"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version | head -n 1
+      - name: Build vertical TikTok video and creator pack
+        env:
+          PROJECT_TITLE: ${{ inputs.title }}
+          CATEGORY: ${{ inputs.category }}
+          SOURCE_URLS: ${{ inputs.source_urls }}
+          HASHTAGS: ${{ inputs.hashtags }}
+          DESCRIPTION: ${{ inputs.description }}
+          MUSIC_URL: ${{ inputs.music_url }}
+          DURATION: ${{ inputs.duration }}
+        run: python3 scripts/studio_build.py
+      - name: Upload finished studio package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinemahub-studio-${{ github.run_number }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 14
