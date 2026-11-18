@@ -20,9 +20,9 @@ DURATION = 22.5
 SHOT_COUNT = 18
 SHOT_LEN = DURATION / SHOT_COUNT
 COMMONS_FILES = [
-    ("Une plage à Miami Beach (Floride) en février 2022.webm", "CC0 1.0", "Benoît Prieur"),
-    ("Miami International Airport (MIA) June 2024 VID (0).webm", "CC BY 4.0", "FunctioningMemberOfSociety"),
-    ("MIA Mover-01.webm", "Public domain dedication", "Priwo"),
+    ("Une plage à Miami Beach (Floride) en février 2022.webm", "CC0 1.0", "Benoît Prieur", "https://creativecommons.org/publicdomain/zero/1.0/", "https://commons.wikimedia.org/wiki/File:Une_plage_à_Miami_Beach_(Floride)_en_février_2022.webm"),
+    ("Miami International Airport (MIA) June 2024 VID (0).webm", "CC BY 4.0", "FunctioningMemberOfSociety", "https://creativecommons.org/licenses/by/4.0/", "https://commons.wikimedia.org/wiki/File:Miami_International_Airport_(MIA)_June_2024_VID_(0).webm"),
+    ("MIA Mover-01.webm", "Public domain", "Priwo", "https://commons.wikimedia.org/wiki/Commons:Licensing", "https://commons.wikimedia.org/wiki/File:MIA_Mover-01.webm"),
 ]
 def run(cmd):
     subprocess.run(cmd, check=True)
@@ -55,7 +55,8 @@ def download_commons_file(filename, dest):
         "action": "query",
         "titles": "File:" + filename,
         "prop": "imageinfo",
-        "iiprop": "url",
+        "iiprop": "url|thumburl",
+        "iiurlwidth": 1280,
         "format": "json",
     })
     api = "https://commons.wikimedia.org/w/api.php?" + params
@@ -67,7 +68,7 @@ def download_commons_file(filename, dest):
     info = page.get("imageinfo", [])
     if not info or not info[0].get("url"):
         raise RuntimeError(f"Commons original media URL not found: {filename}")
-    fetch(info[0]["url"], dest, referer="https://commons.wikimedia.org/")
+    fetch(info[0].get("thumburl") or info[0]["url"], dest, referer="https://commons.wikimedia.org/")
     if dest.stat().st_size < 100_000:
         raise RuntimeError(f"Commons media unexpectedly small: {filename}")
 
@@ -110,7 +111,7 @@ def main():
 
     sources = sorted(p for p in media.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_EXTS)
     external_sources = []
-    for i, (filename, license_name, author) in enumerate(COMMONS_FILES):
+    for i, (filename, license_name, author, license_url, source_url) in enumerate(COMMONS_FILES):
         ext = Path(filename).suffix.lower()
         dest = media / f"commons_miami_{i:02d}{ext}"
         print(f"Downloading Wikimedia Commons source {i+1}/{len(COMMONS_FILES)}: {filename}")
@@ -212,7 +213,7 @@ def main():
         "DESCRIPTION: Сначала кажется, что это реальный Майами. А потом понимаешь — это Vice City. 🌴🔥 Какой кадр выглядит реалистичнее?\n\n"
         "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\n\n"
         "SOURCE: Rockstar Games promotional media + Wikimedia Commons footage.\n"
-        "COMMONS CREDITS: " + " | ".join(f"{name} — {author} ({license_name})" for name, license_name, author in COMMONS_FILES) + "\n"
+        "COMMONS CREDITS:\n" + "\n".join(f"- {name} — {author}; {license_name}; {license_url}; {source_url}" for name, license_name, author, license_url, source_url in COMMONS_FILES) + "\n"
         "NOTE: Check Rockstar's current fan-content policy before monetizing or using promotional footage commercially.\n",
         encoding="utf-8"
     )
