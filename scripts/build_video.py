@@ -85,8 +85,52 @@ def main():
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat_file),
          "-t","22.5","-c:v","libx264","-preset","veryfast","-crf","19","-pix_fmt","yuv420p",
          "-r","30","-an","-movflags","+faststart",str(final)])
+
+    # Add a four-beat Russian hype sequence. Text is kept in UTF-8 files so
+    # FFmpeg handles Cyrillic reliably; all footage remains official Rockstar media.
+    title_cards = [
+        ("13 ЛЕТ МЫ ЖДАЛИ...", 0.0, 3.5),
+        ("И ВОТ ЭТОТ МОМЕНТ НАСТАЛ", 5.0, 9.0),
+        ("VICE CITY • 19.11.2026", 11.5, 16.5),
+        ("ТЫ ГОТОВ?", 18.0, 22.5),
+    ]
+    filters = []
+    font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    for i, (label, start, end) in enumerate(title_cards):
+        text_path = WORK / f"title_{i}.txt"
+        text_path.write_text(label, encoding="utf-8")
+        filters.append(
+            "drawtext="
+            f"fontfile={font}:textfile={text_path.as_posix()}:"
+            "fontcolor=white:fontsize=58:borderw=4:bordercolor=black:"
+            "box=1:boxcolor=black@0.55:boxborderw=24:"
+            "x=(w-text_w)/2:y=h*0.14:"
+            f"enable='between(t,{start},{end})'"
+        )
+    titled = OUT / "cinemahub-gta6-titled.mp4"
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(final),
+         "-vf", ",".join(filters), "-c:v","libx264","-preset","veryfast","-crf","19",
+         "-pix_fmt","yuv420p","-r","30","-an","-movflags","+faststart",str(titled)])
+    titled.replace(final)
+
+    cover = OUT / "cover.jpg"
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","1","-i",str(final),
+         "-frames:v","1","-q:v","2",str(cover)])
+    (OUT / "publication-pack.txt").write_text(
+        "TITLE: Последняя ночь перед GTA VI\\n"
+        "DURATION: 22.5s\\n"
+        "FORMAT: 1080x1920, 30 fps\\n"
+        "MUSIC: Add a currently available sound from TikTok's in-app library.\\n\\n"
+        "DESCRIPTION: 13 лет ожидания. И вот этот момент почти настал… 🌴🔥 "
+        "Vice City, мы возвращаемся! Ты готов к GTA VI?\\n\\n"
+        "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\\n\\n"
+        "SOURCE: Official Rockstar Games media archive.\\n"
+        "NOTE: This edit contains official promotional footage. Check Rockstar's current "
+        "fan-content policy before monetizing or using it to promote a product/service."
+    , encoding="utf-8")
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
-    print("NOTE: no music was embedded; add a properly licensed TikTok sound after download.")
+    print(f"Cover created: {cover} ({cover.stat().st_size} bytes)")
+    print("NOTE: no music was embedded; add a suitable TikTok in-app sound after download.")
 
 if __name__ == "__main__":
     main()
