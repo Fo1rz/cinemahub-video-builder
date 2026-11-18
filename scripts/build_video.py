@@ -6,7 +6,7 @@ from urllib.request import Request, urlopen
 
 ARCHIVE_URL = "https://media.rockstargames.com/VI/downloads/videos/GTAVI_Videos.zip"
 WORK, OUT = Path("work"), Path("output")
-DURATION, SHOTS = 22.5, 12
+DURATION, SHOTS = 22.5, 9
 
 def run(cmd, capture=False):
     return subprocess.run(cmd, check=True, text=True, capture_output=capture)
@@ -20,7 +20,7 @@ def fetch(url, dest):
 
 def duration(path):
     p = run(["ffmpeg","-hide_banner","-i",str(path),"-t","0.001","-f","null","-"],capture=True)
-    m = re.search(r"Duration:\\s*(\\d+):(\\d+):([\\d.]+)",p.stderr)
+    m = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)",p.stderr)
     if not m: return 0.0
     h,mi,s=m.groups()
     return int(h)*3600+int(mi)*60+float(s)
