@@ -76,7 +76,7 @@ def probe_duration(path):
     p = subprocess.run(
         ["ffmpeg", "-hide_banner", "-i", str(path), "-t", "0.001", "-f", "null", "-"],
         capture_output=True, text=True)
-    match = re.search(r"Duration:\s*(\\d+):(\\d+):([\\d.]+)", p.stderr)
+    match = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)", p.stderr)
     if not match:
         return 0.0
     hours, minutes, seconds = match.groups()
@@ -85,7 +85,7 @@ def probe_duration(path):
 def drawtext(label, start, end, size, y):
     text_path = WORK / f"text_{int(start * 100):04d}.txt"
     text_path.write_text(label, encoding="utf-8")
-    font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font = __import__("os").getenv("FONT_FILE", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
     return (
         "drawtext=fontfile=" + font + ":textfile=" + text_path.as_posix() +
         f":fontcolor=white:fontsize={size}:borderw=4:bordercolor=black:"
