@@ -5,6 +5,8 @@ import subprocess
 import zipfile
 import random
 import json
+import time
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -26,9 +28,27 @@ def run(cmd):
     subprocess.run(cmd, check=True)
 
 def fetch(url, dest):
-    req = Request(url, headers={"User-Agent": "Mozilla/5.0 CinemaHubStudio/2.0"})
-    with urlopen(req, timeout=90) as response, open(dest, "wb") as f:
-        shutil.copyfileobj(response, f)
+    req = Request(url, headers={
+        "User-Agent": "CinemaHubStudio/2.3 (https://github.com/Fo1rz/cinemahub-video-builder)",
+        "Referer": "https://commons.wikimedia.org/",
+    })
+    for attempt in range(6):
+        try:
+            with urlopen(req, timeout=120) as response, open(dest, "wb") as output:
+                shutil.copyfileobj(response, output)
+            return
+        except HTTPError as exc:
+            if exc.code not in (429, 500, 502, 503, 504) or attempt == 5:
+                raise
+            delay = min(90, 10 * (2 ** attempt))
+            print(f"Media host returned HTTP {exc.code}; retrying in {delay}s ({attempt+1}/5)...")
+            time.sleep(delay)
+        except (TimeoutError, URLError):
+            if attempt == 5:
+                raise
+            delay = min(90, 10 * (2 ** attempt))
+            print(f"Media download interrupted; retrying in {delay}s ({attempt+1}/5)...")
+            time.sleep(delay)
 
 def download_commons_file(filename, dest):
     params = urlencode({
