@@ -10,10 +10,11 @@ Open Actions → CinemaHub Studio → Run workflow and provide:
 - Project title and category (games, movies, series, trailers)
 - Direct HTTPS links to video files you have permission to use (one URL per line; MP4, MOV, M4V or WebM; up to 20 clips)
 - Optional publication description and hashtags
-- Optional direct HTTPS music file only if you have the rights to use it
+- Optional Russian narration script with selectable male/female voice (Dmitry/Svetlana)
+- Optional direct HTTPS music file only if you have the rights to use it; music is mixed quietly under narration
 - Target duration (15, 22, 30, 45 or 60 seconds)
 
-The workflow produces an MP4 (1080×1920, 30 fps), a JPG cover frame and a publication pack with title, description and hashtags. The package is uploaded as a GitHub Actions artifact for 14 days.
+The workflow produces an MP4 (1080×1920, 30 fps), a JPG cover frame and a publication pack with title, description and hashtags. Optional Russian text-to-speech uses the free `edge-tts` package and requires internet access. The package is uploaded as a GitHub Actions artifact for 14 days.
 
 ## Important limitations
 - This is an assembly studio, not a footage search engine or a TikTok uploader. You or the assistant must supply direct media-file URLs; ordinary YouTube/TikTok page URLs are not direct video files.
