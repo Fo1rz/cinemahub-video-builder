@@ -68,10 +68,18 @@ def main():
     audio_inputs = []
     if narration:
         voice_file = ROOT / "voiceover.mp3"
-        run(["python3","-m","edge_tts","--voice",voice,"--text",narration,"--write-media",str(voice_file)])
+        subtitles_file = ROOT / "voiceover.vtt"
+        run(["python3","-m","edge_tts","--voice",voice,"--text",narration,"--write-media",str(voice_file),"--write-subtitles",str(subtitles_file)])
         if not voice_file.exists() or voice_file.stat().st_size < 1000:
             raise RuntimeError("Text-to-speech did not produce a valid voiceover.")
         audio_inputs.append(voice_file)
+        # Burn readable Russian captions into the video and keep separate subtitle/audio assets.
+        captioned = ROOT / "captioned.mp4"
+        subtitle_filter = f"subtitles=filename='{subtitles_file.as_posix()}':force_style='FontName=DejaVu Sans,FontSize=18,PrimaryColour=&H00FFFFFF,OutlineColour=&H00101010,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=150'"
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(silent),"-vf",subtitle_filter,"-c:v","libx264","-preset","veryfast","-crf","19","-pix_fmt","yuv420p","-an","-movflags","+faststart",str(captioned)])
+        shutil.copy2(subtitles_file, OUT / "voiceover.vtt")
+        shutil.copy2(voice_file, OUT / "voiceover.mp3")
+        silent = captioned
     if music_url:
         music = ROOT / "music.mp3"
         download(music_url, music)
@@ -92,7 +100,7 @@ def main():
         "NOTE: Verify music and footage usage rights before publishing. If no music was supplied, add a sound from TikTok's in-app library.\n"
     )
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
-    print(f"Sources processed: {len(clips)} | duration: {duration}s | music: {'included' if music_url else 'not included'}")
+    print(f"Sources processed: {len(clips)} | duration: {duration}s | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
 
 if __name__ == "__main__":
     main()
