@@ -90,7 +90,7 @@ def main():
         clips.append(out)
         print(f"Cut {i+1:02d}: {src.name} at {start:.2f}s")
     concat=WORK/"concat.txt"
-    concat.write_text("".join(f"file '{p.resolve().as_posix()}'\\n" for p in clips))
+    concat.write_text("\\n".join("file " + chr(39) + str(p.resolve()) + chr(39) for p in clips) + "\\n")
     silent=WORK/"montage.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(DURATION),
          "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","17","-an","-movflags","+faststart",str(silent)])
