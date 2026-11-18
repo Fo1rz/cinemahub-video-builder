@@ -4,8 +4,6 @@ import shutil
 import subprocess
 import zipfile
 import random
-import re
-import html
 import json
 from urllib.parse import urlencode
 from pathlib import Path
@@ -31,21 +29,6 @@ def fetch(url, dest):
     req = Request(url, headers={"User-Agent": "Mozilla/5.0 CinemaHubStudio/2.0"})
     with urlopen(req, timeout=90) as response, open(dest, "wb") as f:
         shutil.copyfileobj(response, f)
-
-def resolve_pexels_page(page_url, dest):
-    req = Request(page_url, headers={"User-Agent": "Mozilla/5.0 CinemaHubStudio/2.1"})
-    with urlopen(req, timeout=90) as response:
-        page = response.read().decode("utf-8", errors="replace")
-    page = html.unescape(page).replace("\\/", "/").replace("\\u0026", "&")
-    matches = re.findall(r'https?://videos\.pexels\.com/video-files/[0-9]+/[^"\'<>\s]+?\.mp4(?:\?[^"\'<>\s]*)?', page)
-    urls = list(dict.fromkeys(matches))
-    if not urls:
-        raise RuntimeError(f"Could not resolve direct MP4 from Pexels page: {page_url}")
-    urls.sort(key=lambda u: ("hd_" in u or "4k" in u, len(u)), reverse=True)
-    fetch(urls[0], dest)
-    if dest.stat().st_size < 100_000:
-        raise RuntimeError(f"Pexels media unexpectedly small: {page_url}")
-
 
 def download_commons_file(filename, dest):
     params = urlencode({
@@ -208,8 +191,8 @@ def main():
         "MUSIC: Add a currently trending, suitable sound from TikTok's in-app library.\n\n"
         "DESCRIPTION: Сначала кажется, что это реальный Майами. А потом понимаешь — это Vice City. 🌴🔥 Какой кадр выглядит реалистичнее?\n\n"
         "HASHTAGS: #GTA6 #GTAVI #ViceCity #Gaming #CinemaHub\n\n"
-        "SOURCE: Rockstar Games promotional media + free Pexels stock footage.\n"
-        "PEXELS: " + "\\n".join(COMMONS_FILES) + "\\n"
+        "SOURCE: Rockstar Games promotional media + Wikimedia Commons footage.\n"
+        "COMMONS CREDITS: " + " | ".join(f"{name} — {author} ({license_name})" for name, license_name, author in COMMONS_FILES) + "\n"
         "NOTE: Check Rockstar's current fan-content policy before monetizing or using promotional footage commercially.\n",
         encoding="utf-8"
     )
