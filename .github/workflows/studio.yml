@@ -56,6 +56,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Validate Python syntax
+        run: python3 -m py_compile scripts/studio_build.py
       - name: Install FFmpeg
         run: |
           sudo apt-get update
