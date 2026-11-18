@@ -29,27 +29,41 @@ def main():
     title = os.getenv("PROJECT_TITLE", "CinemaHub video").strip()
     category = os.getenv("CATEGORY", "games").strip()
     duration = int(os.getenv("DURATION", "22"))
+    self_test = os.getenv("CINEMAHUB_SELF_TEST") == "1"
     urls = [u.strip() for u in os.getenv("SOURCE_URLS", "").splitlines() if u.strip()]
-    if not urls:
+    if not self_test and not urls:
         raise RuntimeError("No source URLs provided. Supply direct HTTPS links to media you may lawfully use.")
     if len(urls) > 20:
         raise RuntimeError("Maximum 20 source clips per build.")
+    if self_test:
+        duration = 15
+        shutil.rmtree(ROOT, ignore_errors=True)
+        shutil.rmtree(OUT, ignore_errors=True)
     ROOT.mkdir(parents=True, exist_ok=True); OUT.mkdir(exist_ok=True)
     pace = os.getenv("PACE", "fast").strip().lower()
     pace_seconds = {"fast": 1.6, "balanced": 2.4, "cinematic": 3.6}
     if pace not in pace_seconds:
         raise RuntimeError("PACE must be fast, balanced, or cinematic.")
     sources = []
-    for i, url in enumerate(urls):
-        ext = Path(url.split("?")[0]).suffix.lower()
-        if ext not in VIDEO_EXTS:
-            raise RuntimeError(f"Unsupported media extension for source {i+1}: {ext or 'unknown'} (use MP4/MOV/M4V/WebM direct links).")
-        src = ROOT / f"source_{i:02d}{ext}"
-        download(url, src)
-        length = probe(src)
-        if length < 0.8:
-            raise RuntimeError(f"Source {i+1} is not a readable video.")
-        sources.append((src, length))
+    if self_test:
+        # Synthetic footage exercises the real FFmpeg montage path without external media.
+        for i, color in enumerate(("0x182848", "0x8f2438")):
+            src = ROOT / f"self_test_{i:02d}.mp4"
+            run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                 "-f", "lavfi", "-i", f"color=c={color}:s=540x960:r=30:d=5",
+                 "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)])
+            sources.append((src, probe(src)))
+    else:
+        for i, url in enumerate(urls):
+            ext = Path(url.split("?")[0]).suffix.lower()
+            if ext not in VIDEO_EXTS:
+                raise RuntimeError(f"Unsupported media extension for source {i+1}: {ext or 'unknown'} (use MP4/MOV/M4V/WebM direct links).")
+            src = ROOT / f"source_{i:02d}{ext}"
+            download(url, src)
+            length = probe(src)
+            if length < 0.8:
+                raise RuntimeError(f"Source {i+1} is not a readable video.")
+            sources.append((src, length))
     # Build a paced montage from short excerpts distributed across the supplied sources.
     segment_count = max(1, int((duration + pace_seconds[pace] - 0.001) // pace_seconds[pace]))
     visits = [0] * len(sources)
@@ -80,6 +94,8 @@ def main():
     music_url = os.getenv("MUSIC_URL","").strip()
     narration = os.getenv("NARRATION_TEXT","").strip()
     hook_text = os.getenv("HOOK_TEXT","").strip()
+    if self_test:
+        hook_text = "CINEMAHUB SELF-TEST"
     voice = os.getenv("VOICE","ru-RU-DmitryNeural").strip()
     if duration not in {15, 22, 30, 45, 60}:
         raise RuntimeError("Duration must be one of: 15, 22, 30, 45, 60 seconds.")
@@ -144,6 +160,15 @@ def main():
     )
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
     print(f"Sources processed: {len(clips)} | duration: {duration}s | pace: {pace} | hook: {'included' if hook_text else 'off'} | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
+    if self_test:
+        check = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height,r_frame_rate", "-of", "csv=p=0", str(final)],
+            capture_output=True, text=True, check=True).stdout.strip()
+        if check != "1080,1920,30/1":
+            raise RuntimeError(f"Self-test failed: unexpected video format: {check}")
+        if not cover.exists() or cover.stat().st_size < 1000 or not (OUT / "publication-pack.txt").exists():
+            raise RuntimeError("Self-test failed: cover or publication pack is missing.")
+        print("SELF-TEST PASSED: MP4 format, cover and publication pack verified.")
 
 if __name__ == "__main__":
     main()
