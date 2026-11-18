@@ -19,6 +19,9 @@ Open Actions → CinemaHub Studio → Run workflow and provide:
 
 The opening hook is rendered as a high-contrast title card over the footage for the first 2.8 seconds. Montage pace controls excerpt length and the rhythm of scene changes. The workflow produces an MP4 (1080×1920, 30 fps), a JPG cover frame and a publication pack with title, description and hashtags. Optional Russian text-to-speech uses the free `edge-tts` package and requires internet access. The package is uploaded as a GitHub Actions artifact for 14 days.
 
+## Automated build check
+Every code push runs a synthetic end-to-end render through the same FFmpeg montage, vertical conversion, opening-hook, cover and publication-pack steps. The generated test artifact is retained for 3 days. This validates the rendering pipeline without requiring external footage; real source downloads and optional text-to-speech still need a separate user build.
+
 ## Important limitations
 - This is an assembly studio, not a footage search engine or a TikTok uploader. You or the assistant must supply direct media-file URLs; ordinary YouTube/TikTok page URLs are not direct video files.
 - Only use official press assets, public-domain/Creative Commons footage with compatible terms, or media for which you have permission. A public trailer is not automatically free to re-upload.
