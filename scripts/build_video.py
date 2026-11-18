@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 PAGE = "https://www.rockstargames.com/VI/media/videos"
+OFFICIAL_ZIP = "https://media-rockstargames-com.akamaized.net/VI/downloads/videos/GTAVI_Videos.zip"
 WORK = Path("work")
 OUT = Path("output")
 ZIP_PATH = WORK / "rockstar-media.zip"
@@ -16,22 +17,9 @@ def fetch(url, dest):
         shutil.copyfileobj(response, f)
 
 def discover_zip():
-    req = Request(PAGE, headers={"User-Agent": "Mozilla/5.0"})
-    html = urlopen(req, timeout=40).read().decode("utf-8", "ignore")
-    # Rockstar currently exposes a "Download All" ZIP link in its official media library.
-    candidates = re.findall(r'''(?:href|content)=["']([^"']+\.zip(?:\?[^"']*)?)["']''', html, re.I)
-    candidates += re.findall(r'''(https?[^"'\\ ]+\.zip(?:\?[^"'\\ ]*)?)''', html, re.I)
-    for href in candidates:
-        u = urljoin(PAGE, href.replace("&amp;", "&"))
-        if "rockstargames.com" in u.lower():
-            return u
-    # Some pages hydrate the media page from JSON; inspect embedded strings for zip URLs.
-    m = re.search(r'([^"\\ ]{0,300}\.zip(?:\\u0026|\?)[^"\\ ]*)', html, re.I)
-    if m:
-        candidate = m.group(1).replace("\\u0026", "&").replace("\\/", "/")
-        if candidate.startswith("http"):
-            return candidate
-    raise RuntimeError("Could not find the official ZIP download link on Rockstar's media page.")
+    # Exact archive URL exposed by Rockstar's official Download All videos link.
+    print(f"Using Rockstar official media archive: {OFFICIAL_ZIP}")
+    return OFFICIAL_ZIP
 
 def probe_duration(path):
     p = subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(path)], capture_output=True, text=True)
