@@ -22,10 +22,12 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Install FFmpeg and fonts
+      - name: Ensure FFmpeg and fonts are available
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -o Acquire::Retries=2
+            sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          fi
           ffmpeg -version | head -n 1
       - name: Validate Python
         run: python3 -m py_compile scripts/build_video.py
