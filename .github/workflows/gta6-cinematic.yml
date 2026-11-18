@@ -34,6 +34,7 @@ jobs:
           FFMPEG_BIN="$(.tools-venv/bin/python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
           ln -sf "$FFMPEG_BIN" "$HOME/.local/bin/ffmpeg"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$PWD/.tools-venv/bin" >> "$GITHUB_PATH"
           FONT_FILE="$(.tools-venv/bin/python -c 'from matplotlib import font_manager; print(font_manager.findfont(font_manager.FontProperties(family="DejaVu Sans", weight="bold")))')"
           echo "FONT_FILE=$FONT_FILE" >> "$GITHUB_ENV"
           ffmpeg -version | head -n 1
