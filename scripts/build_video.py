@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# GTA VI pre-launch edit: timed Russian hype title cards and creator pack.
 import os, re, sys, zipfile, subprocess, shutil, random
 from pathlib import Path
 from urllib.parse import urljoin
