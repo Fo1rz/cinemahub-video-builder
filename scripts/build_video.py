@@ -55,20 +55,31 @@ def main():
     clip_dir = WORK / "clips"
     clip_dir.mkdir(exist_ok=True)
     clip_paths = []
+    clip_durations = []
     for i, src in enumerate(selected):
         duration = probe_duration(src)
-        if duration < 2.7:
+        print(f"Source {src.name}: {duration:.3f}s")
+        if duration < 0.6:
+            print(f"Skipping very short/unreadable source: {src.name}")
             continue
-        # Pick a different point through each source clip, avoiding the opening slate.
-        start = min(max(0.8, duration * (0.28 + (i % 3) * 0.12)), max(0, duration - 2.5))
+        # Use up to 2.5 seconds from each official source, including short clips.
+        clip_len = min(2.5, duration)
+        start = max(0.0, (duration - clip_len) * (0.35 + (i % 3) * 0.15))
         target = clip_dir / f"clip_{i:02d}.mp4"
-        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{start:.3f}","-i",str(src),"-t","2.5",
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{start:.3f}","-i",str(src),"-t",f"{clip_len:.3f}",
              "-an","-vf","scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
              "-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-movflags","+faststart",str(target)])
         clip_paths.append(target)
+        clip_durations.append(clip_len)
     if len(clip_paths) < 5:
         raise RuntimeError(f"Only {len(clip_paths)} usable clips; refusing to publish a weak/empty edit.")
-    concat_file = clip_dir / "concat.txt"
+    # Repeat the official montage sequence if the source clips are collectively shorter than 20 seconds.
+    total_duration = sum(clip_durations)
+    while total_duration < 22.5 and len(clip_paths) >= 5:
+        clip_paths.extend(clip_paths[:])
+        clip_durations.extend(clip_durations[:])
+        total_duration = sum(clip_durations)
+        concat_file = clip_dir / "concat.txt"
     concat_file.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in clip_paths))
     final = OUT / "cinemahub-gta6.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat_file),
