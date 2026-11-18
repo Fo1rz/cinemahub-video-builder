@@ -28,12 +28,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install portable FFmpeg
         run: |
-          python3 -m pip install --user --disable-pip-version-check imageio-ffmpeg matplotlib
+          python3 -m venv .tools-venv
+          .tools-venv/bin/pip install --disable-pip-version-check imageio-ffmpeg matplotlib
           mkdir -p "$HOME/.local/bin"
-          FFMPEG_BIN="$(python3 -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
+          FFMPEG_BIN="$(.tools-venv/bin/python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
           ln -sf "$FFMPEG_BIN" "$HOME/.local/bin/ffmpeg"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          FONT_FILE="$(python3 -c 'from matplotlib import font_manager; print(font_manager.findfont("DejaVu Sans:style=Bold"))')"
+          FONT_FILE="$(.tools-venv/bin/python -c 'from matplotlib import font_manager; print(font_manager.findfont("DejaVu Sans:style=Bold"))')"
           echo "FONT_FILE=$FONT_FILE" >> "$GITHUB_ENV"
           ffmpeg -version | head -n 1
       - name: Validate Python
