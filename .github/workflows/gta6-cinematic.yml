@@ -29,7 +29,7 @@ jobs:
       - name: Install portable FFmpeg
         run: |
           python3 -m venv .tools-venv
-          .tools-venv/bin/pip install --disable-pip-version-check imageio-ffmpeg matplotlib
+          .tools-venv/bin/pip install --disable-pip-version-check imageio-ffmpeg matplotlib yt-dlp
           mkdir -p "$HOME/.local/bin"
           FFMPEG_BIN="$(.tools-venv/bin/python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
           ln -sf "$FFMPEG_BIN" "$HOME/.local/bin/ffmpeg"
