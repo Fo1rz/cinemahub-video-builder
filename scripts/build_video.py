@@ -19,7 +19,7 @@ def fetch(url, dest):
         raise RuntimeError("Rockstar media archive is unexpectedly small.")
 
 def duration(path):
-    p = run(["ffmpeg","-hide_banner","-i",str(path),"-t","0.001","-f","null","-"],capture=True)
+    p = run(["ffmpeg","-hide_banner","-i",str(path),"-frames:v","1","-f","null","-"],capture=True)
     m = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)",p.stderr)
     if not m: return 0.0
     h,mi,s=m.groups()
@@ -50,7 +50,7 @@ def main():
                 with z.open(info) as src, open(target,"wb") as dst: shutil.copyfileobj(src,dst)
                 if target.stat().st_size>100_000: vids.append(target)
     if len(vids)<6: raise RuntimeError(f"Expected Rockstar trailer and character clips; found only {len(vids)} video files.")
-    print("Official source videos:",*[p.name for p in vids],sep="\\n - ")
+    print("Official source videos:",*[p.name for p in vids],sep=chr(10)+" - ")
     preferred=("trailer 2","jason","lucia","cal hampton","boobie","dre","real dimez","raul","brian","trailer 1","launch")
     def rank(p):
         n=p.name.lower()
@@ -61,7 +61,7 @@ def main():
     meta=[]
     for p in vids:
         d=duration(p)
-        if d>2.5: meta.append((p,d,scene_points(p,d)))
+        print("SOURCE_DURATION",p.name,d)\n        if d>1.5: meta.append((p,d,scene_points(p,d)))
     if len(meta)<6: raise RuntimeError("Not enough readable official Rockstar videos after validation.")
     shot_len=DURATION/SHOTS
     # Prefer a different official asset for each cut; revisit only the main trailer if needed.
@@ -90,7 +90,7 @@ def main():
         clips.append(out)
         print(f"Cut {i+1:02d}: {src.name} at {start:.2f}s")
     concat=WORK/"concat.txt"
-    concat.write_text("\\n".join("file " + chr(39) + str(p.resolve()) + chr(39) for p in clips) + "\\n")
+    concat.write_text(chr(10).join("file " + chr(39) + str(p.resolve()) + chr(39) for p in clips) + chr(10))
     silent=WORK/"montage.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(DURATION),
          "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","17","-an","-movflags","+faststart",str(silent)])
