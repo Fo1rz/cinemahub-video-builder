@@ -1,6 +1,10 @@
 name: CinemaHub Studio
 
 on:
+  push:
+    paths:
+      - "scripts/studio_build.py"
+      - ".github/workflows/studio.yml"
   workflow_dispatch:
     inputs:
       title:
@@ -51,7 +55,14 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
   build:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
