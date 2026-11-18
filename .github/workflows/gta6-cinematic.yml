@@ -50,8 +50,8 @@ jobs:
           log = p.stderr
           assert "Video: h264" in log, log
           assert "1080x1920" in log, log
-          assert re.search(r"\\b30 fps\\b", log) or re.search(r"\\b30 tbr\\b", log), log
-          m = re.search(r"Duration:\\s*(\\d+):(\\d+):([\\d.]+)", log)
+          assert re.search(r"\b30 fps\b", log) or re.search(r"\b30 tbr\b", log), log
+          m = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)", log)
           assert m, log
           h, minute, second = m.groups()
           duration = int(h)*3600 + int(minute)*60 + float(second)
