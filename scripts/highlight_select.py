@@ -1,4 +1,4 @@
-"""Motion-ranked highlight selection for raw gameplay recordings."""
+"""Motion and scene-change ranked gameplay highlight selector."""
 import subprocess
 import numpy as np
 
@@ -14,32 +14,38 @@ def select_segments(sources, duration, seg_len):
         if count < 4:
             continue
         frames = np.frombuffer(raw[:count*frame_size], dtype=np.uint8).reshape(count,72,128).astype(np.int16)
-        # Motion energy between adjacent frames, plus a small detail/contrast bonus.
         diffs = np.abs(np.diff(frames, axis=0)).mean(axis=(1,2))
         brightness = frames.mean(axis=(1,2))
         contrast = frames.std(axis=(1,2))
-        step = 2.0
-        win = max(3, int(round(seg_len / step)) + 1)
-        for start in range(0, max(1, count-win+1), 2):
+        # fps=2 means one sampled frame every 0.5 seconds.
+        step = 0.5
+        win = max(4, int(round(seg_len / step)) + 1)
+        max_offset = max(0.0, source_length - seg_len - 0.05)
+        last_start = min(count-win, int(max_offset / step))
+        for start in range(0, max(0, last_start)+1, 2):
             end = min(count-1, start+win-1)
             if end-start < 2:
+                continue
+            offset = start * step
+            if offset + seg_len > source_length + 0.02:
                 continue
             motion = float(diffs[start:end].mean())
             light = float(brightness[start:end+1].mean())
             detail = float(contrast[start:end+1].mean())
-            if light < 22 or detail < 12:
+            # Skip dark/flat screens and near-static traversal.
+            if light < 22 or detail < 12 or motion < 2.5:
                 continue
-            # Avoid dead/static footage; motion dominates, detail prevents muddy frames.
-            score = motion + min(detail, 55)*0.10
-            candidates.append((score, source_index, start*step, min(seg_len, source_length-start*step)))
+            # Motion + scene transitions + image detail. Avoid simply rewarding shaky camera.
+            peak = float(np.percentile(diffs[start:end], 85))
+            score = motion * 0.72 + peak * 0.18 + min(detail, 55)*0.10
+            candidates.append((score, source_index, offset, seg_len))
     if not candidates:
-        raise RuntimeError("Could not find usable moving gameplay highlights in the source videos.")
-    # Greedy quality-first selection with temporal spacing to prevent repeated nearby frames.
+        raise RuntimeError("No usable dynamic gameplay moments found in the source recordings.")
     candidates.sort(reverse=True)
     wanted = max(1, int(round(duration / seg_len)))
     chosen = []
-    min_gap = max(3.5, seg_len*1.8)
-    for gap in (min_gap, 2.0, 0.0):
+    # Spread picks over the source timeline and across recordings.
+    for gap in (max(3.5, seg_len*1.8), 2.0, 0.75, 0.0):
         for score, si, offset, length in candidates:
             if len(chosen) >= wanted:
                 break
@@ -49,12 +55,7 @@ def select_segments(sources, duration, seg_len):
         if len(chosen) >= wanted:
             break
     if len(chosen) < wanted:
-        # Reuse only as a last resort, and never pad with a single repeated excerpt.
-        for item in candidates:
-            chosen.append(item)
-            if len(chosen) >= wanted:
-                break
-    # Strongest moment opens; remaining clips are interleaved across source files.
+        raise RuntimeError(f"Only {len(chosen)} usable highlights found; refusing to pad the edit with weak/repeated footage.")
+    # Highest-scoring moment opens, then maintain a varied sequence of clips.
     chosen.sort(key=lambda x: x[0], reverse=True)
-    result = [(sources[si][0], offset, length) for _,si,offset,length in chosen[:wanted]]
-    return result
+    return [(sources[si][0], offset, length) for _,si,offset,length in chosen[:wanted]]
