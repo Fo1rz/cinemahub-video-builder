@@ -31,8 +31,9 @@ def main():
     duration = int(os.getenv("DURATION", "22"))
     self_test = os.getenv("CINEMAHUB_SELF_TEST") == "1"
     urls = [u.strip() for u in os.getenv("SOURCE_URLS", "").splitlines() if u.strip()]
-    if not self_test and not urls:
-        raise RuntimeError("No source URLs provided. Supply direct HTTPS links to media you may lawfully use.")
+    drive_folder_url = os.getenv("DRIVE_FOLDER_URL", "").strip()
+    if not self_test and not urls and not drive_folder_url:
+        raise RuntimeError("Provide a shared Google Drive folder URL or direct HTTPS media URLs.")
     if len(urls) > 20:
         raise RuntimeError("Maximum 20 source clips per build.")
     if self_test:
@@ -54,16 +55,42 @@ def main():
                  "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)])
             sources.append((src, probe(src)))
     else:
+        source_paths = []
+        if drive_folder_url:
+            import gdown
+            drive_dir = ROOT / "google_drive"
+            shutil.rmtree(drive_dir, ignore_errors=True)
+            drive_dir.mkdir(parents=True, exist_ok=True)
+            print("Downloading shared Google Drive folder...")
+            downloaded = gdown.download_folder(
+                url=drive_folder_url, output=str(drive_dir),
+                quiet=False, use_cookies=False, remaining_ok=True
+            )
+            if not downloaded:
+                raise RuntimeError("Google Drive folder download returned no files. Check that the folder is shared as 'Anyone with the link — Viewer'.")
+            source_paths.extend(
+                x for x in drive_dir.rglob("*")
+                if x.is_file() and x.suffix.lower() in VIDEO_EXTS
+            )
+            print(f"Google Drive files downloaded: {len(downloaded)}; video files found: {len(source_paths)}")
         for i, url in enumerate(urls):
             ext = Path(url.split("?")[0]).suffix.lower()
             if ext not in VIDEO_EXTS:
                 raise RuntimeError(f"Unsupported media extension for source {i+1}: {ext or 'unknown'} (use MP4/MOV/M4V/WebM direct links).")
-            src = ROOT / f"source_{i:02d}{ext}"
+            src = ROOT / f"source_url_{i:02d}{ext}"
             download(url, src)
+            source_paths.append(src)
+        if not source_paths:
+            raise RuntimeError("No MP4/MOV/M4V/WebM videos found in the shared folder or direct URLs.")
+        source_paths = sorted(source_paths, key=lambda x: x.name.lower())[:20]
+        for i, src in enumerate(source_paths):
             length = probe(src)
             if length < 0.8:
-                raise RuntimeError(f"Source {i+1} is not a readable video.")
+                print(f"Skipping unreadable/short source: {src.name}")
+                continue
             sources.append((src, length))
+        if not sources:
+            raise RuntimeError("No readable video sources were found.")
     # Build a paced montage from short excerpts distributed across the supplied sources.
     segment_count = max(1, int((duration + pace_seconds[pace] - 0.001) // pace_seconds[pace]))
     visits = [0] * len(sources)
@@ -78,8 +105,8 @@ def main():
         visits[source_index] += 1
         target = ROOT / f"segment_{k:03d}.mp4"
         run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{offset:.3f}","-i",str(src),"-t",f"{seg_len:.2f}",
-             "-vf","scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,setsar=1",
-             "-an","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-movflags","+faststart",str(target)])
+             "-filter_complex","[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:12,eq=brightness=-0.16:saturation=0.72[back];[fg]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos[front];[back][front]overlay=(W-w)/2:(H-h)/2,fps=30,setsar=1,format=yuv420p[v]",
+             "-map","[v]","-an","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-movflags","+faststart",str(target)])
         clips.append(target); clip_lengths.append(seg_len)
     # Repeat the paced sequence only when the selected excerpts do not fill the requested duration.
     playlist, total = list(clips), sum(clip_lengths)
