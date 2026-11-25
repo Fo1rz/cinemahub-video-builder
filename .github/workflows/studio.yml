@@ -3,8 +3,7 @@ name: CinemaHub Studio
 on:
   push:
     paths:
-      - "scripts/studio_build.py"
-      - ".github/workflows/studio.yml"
+      - ".cinemahub-run-drive-import"
   workflow_dispatch:
     inputs:
       title:
@@ -30,7 +29,7 @@ on:
       hashtags:
         description: "TikTok hashtags"
         required: false
-        default: "#CinemaHub #Gaming #Movies"
+        default: "#GTA6 #Gaming #CinemaHub"
         type: string
       description:
         description: "Post description"
@@ -73,6 +72,7 @@ permissions:
 
 jobs:
   self-test:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -105,7 +105,7 @@ jobs:
         run: python3 -m py_compile scripts/studio_build.py
 
   build:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -124,18 +124,18 @@ jobs:
         run: python3 -m pip install --user --break-system-packages edge-tts
       - name: Build vertical TikTok video and creator pack
         env:
-          PROJECT_TITLE: ${{ inputs.title }}
-          CATEGORY: ${{ inputs.category }}
-          SOURCE_URLS: ${{ inputs.source_urls }}
-          DRIVE_FOLDER_URL: ${{ inputs.drive_folder_url }}
-          HASHTAGS: ${{ inputs.hashtags }}
-          DESCRIPTION: ${{ inputs.description }}
-          MUSIC_URL: ${{ inputs.music_url }}
-          HOOK_TEXT: ${{ inputs.hook_text }}
-          NARRATION_TEXT: ${{ inputs.narration_text }}
-          VOICE: ${{ inputs.voice }}
-          DURATION: ${{ inputs.duration }}
-          PACE: ${{ inputs.pace }}
+          PROJECT_TITLE: ${{ inputs.title || 'GTA 6 — лучшие моменты из моих записей' }}
+          CATEGORY: ${{ inputs.category || 'games' }}
+          SOURCE_URLS: ${{ inputs.source_urls || '' }}
+          DRIVE_FOLDER_URL: ${{ inputs.drive_folder_url || 'https://drive.google.com/drive/folders/1xo44fqdcea1AW1q-3Gcd7Ox4B5mF-2Ru' }}
+          HASHTAGS: ${{ inputs.hashtags || '#GTA6 #Gaming #CinemaHub' }}
+          DESCRIPTION: ${{ inputs.description || 'Мои лучшие моменты из GTA 6. Какой эпизод самый мощный?' }}
+          MUSIC_URL: ${{ inputs.music_url || '' }}
+          HOOK_TEXT: ${{ inputs.hook_text || 'ЭТОТ МОМЕНТ В GTA 6…' }}
+          NARRATION_TEXT: ${{ inputs.narration_text || '' }}
+          VOICE: ${{ inputs.voice || 'ru-RU-DmitryNeural' }}
+          DURATION: ${{ inputs.duration || '22' }}
+          PACE: ${{ inputs.pace || 'fast' }}
         run: python3 scripts/studio_build.py
       - name: Upload finished studio package
         uses: actions/upload-artifact@v4
