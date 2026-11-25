@@ -10,10 +10,12 @@ on:
       title:
         description: "Project title"
         required: true
+        default: "GTA 6 — лучшие моменты из моих записей"
         type: string
       category:
         description: "Content category"
         required: true
+        default: games
         type: choice
         options: [games, movies, series, trailers]
       drive_folder_url:
