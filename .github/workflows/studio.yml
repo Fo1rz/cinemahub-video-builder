@@ -16,9 +16,14 @@ on:
         required: true
         type: choice
         options: [games, movies, series, trailers]
+      drive_folder_url:
+        description: "Shared Google Drive folder URL (anyone with the link: Viewer)"
+        required: false
+        default: "https://drive.google.com/drive/folders/1xo44fqdcea1AW1q-3Gcd7Ox4B5mF-2Ru"
+        type: string
       source_urls:
-        description: "Direct HTTPS links to permitted MP4/MOV/M4V/WebM files, one per line"
-        required: true
+        description: "Optional direct HTTPS links to permitted MP4/MOV/M4V/WebM files, one per line"
+        required: false
         type: string
       hashtags:
         description: "TikTok hashtags"
@@ -106,10 +111,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Python syntax
         run: python3 -m py_compile scripts/studio_build.py
-      - name: Install FFmpeg
+      - name: Install FFmpeg and Google Drive downloader
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python3 -m pip install --user --break-system-packages gdown
           ffmpeg -version | head -n 1
       - name: Install free text-to-speech dependency
         if: ${{ inputs.narration_text != '' }}
@@ -119,6 +125,7 @@ jobs:
           PROJECT_TITLE: ${{ inputs.title }}
           CATEGORY: ${{ inputs.category }}
           SOURCE_URLS: ${{ inputs.source_urls }}
+          DRIVE_FOLDER_URL: ${{ inputs.drive_folder_url }}
           HASHTAGS: ${{ inputs.hashtags }}
           DESCRIPTION: ${{ inputs.description }}
           MUSIC_URL: ${{ inputs.music_url }}
