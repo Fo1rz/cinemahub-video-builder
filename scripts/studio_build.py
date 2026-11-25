@@ -113,6 +113,17 @@ def main():
             sources.append((src, length))
         if not sources:
             raise RuntimeError("No readable video sources were found.")
+    # Export a visual storyboard so the strongest scenes can be reviewed and curated.
+    review_dir = OUT / "source-review"
+    review_dir.mkdir(parents=True, exist_ok=True)
+    for idx, (src, source_length) in enumerate(sources):
+        sheet = review_dir / f"source-{idx+1:02d}.jpg"
+        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),
+             "-vf","fps=1/3,scale=320:180:force_original_aspect_ratio=decrease,pad=320:180:(ow-iw)/2:(oh-ih)/2,tile=4x4",
+             "-frames:v","1","-q:v","3",str(sheet)])
+    (review_dir / "sources.txt").write_text(
+        "\\n".join(f"{i+1}. {Path(src).name} — {length:.1f}s" for i,(src,length) in enumerate(sources)),
+        encoding="utf-8")
     # Rank short windows by actual on-screen motion, then select diverse highlights.
     from highlight_select import select_segments
     target_cut = 1.9 if duration >= 45 else pace_seconds[pace]
