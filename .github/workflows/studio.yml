@@ -63,7 +63,7 @@ on:
       duration:
         description: "Video duration in seconds"
         required: true
-        default: "22"
+        default: "60"
         type: choice
         options: ["15", "22", "30", "45", "60"]
 
@@ -117,7 +117,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core
-          python3 -m pip install --user --break-system-packages gdown
+          python3 -m pip install --user --break-system-packages gdown numpy
           ffmpeg -version | head -n 1
       - name: Install free text-to-speech dependency
         if: ${{ inputs.narration_text != '' }}
@@ -134,7 +134,7 @@ jobs:
           HOOK_TEXT: ${{ inputs.hook_text || 'ЭТОТ МОМЕНТ В GTA 6…' }}
           NARRATION_TEXT: ${{ inputs.narration_text || '' }}
           VOICE: ${{ inputs.voice || 'ru-RU-DmitryNeural' }}
-          DURATION: ${{ inputs.duration || '22' }}
+          DURATION: ${{ inputs.duration || '60' }}
           PACE: ${{ inputs.pace || 'fast' }}
         run: python3 scripts/studio_build.py
       - name: Upload finished studio package
