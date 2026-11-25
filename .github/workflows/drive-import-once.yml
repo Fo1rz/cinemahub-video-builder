@@ -1,0 +1,43 @@
+name: CinemaHub One-time GTA 6 Drive Import
+
+on:
+  push:
+    paths:
+      - ".cinemahub-run-drive-import"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg, fonts and Google Drive downloader
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python3 -m pip install --user --break-system-packages gdown
+          ffmpeg -version | head -n 1
+      - name: Build GTA 6 TikTok from the shared Drive folder
+        env:
+          PROJECT_TITLE: "GTA 6 — лучшие моменты из моих записей"
+          CATEGORY: "games"
+          DRIVE_FOLDER_URL: "https://drive.google.com/drive/folders/1xo44fqdcea1AW1q-3Gcd7Ox4B5mF-2Ru"
+          SOURCE_URLS: ""
+          HASHTAGS: "#GTA6 #Gaming #CinemaHub"
+          DESCRIPTION: "Мои лучшие моменты из GTA 6. Какой эпизод самый мощный?"
+          HOOK_TEXT: "ЭТОТ МОМЕНТ В GTA 6…"
+          NARRATION_TEXT: ""
+          VOICE: "ru-RU-DmitryNeural"
+          DURATION: "22"
+          PACE: "fast"
+        run: python3 scripts/studio_build.py
+      - name: Upload finished TikTok and publication pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinemahub-gta6-drive-${{ github.run_number }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 14
