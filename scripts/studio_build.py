@@ -64,7 +64,7 @@ def main():
             print("Downloading shared Google Drive folder...")
             downloaded = gdown.download_folder(
                 url=drive_folder_url, output=str(drive_dir),
-                quiet=False, use_cookies=False, remaining_ok=True
+                quiet=False, use_cookies=False
             )
             if not downloaded:
                 raise RuntimeError("Google Drive folder download returned no files. Check that the folder is shared as 'Anyone with the link — Viewer'.")
