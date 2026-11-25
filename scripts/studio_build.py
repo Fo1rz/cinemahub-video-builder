@@ -113,18 +113,12 @@ def main():
             sources.append((src, length))
         if not sources:
             raise RuntimeError("No readable video sources were found.")
-    # Build a paced montage from short excerpts distributed across the supplied sources.
-    segment_count = max(1, int((duration + pace_seconds[pace] - 0.001) // pace_seconds[pace]))
-    visits = [0] * len(sources)
-    visit_totals = [sum(1 for k in range(segment_count) if k % len(sources) == i) for i in range(len(sources))]
+    # Rank short windows by actual on-screen motion, then select diverse highlights.
+    from highlight_select import select_segments
+    target_cut = 1.9 if duration >= 45 else pace_seconds[pace]
+    selected = select_segments(sources, duration, target_cut)
     clips, clip_lengths = [], []
-    for k in range(segment_count):
-        src, source_length = sources[k % len(sources)]
-        source_index = k % len(sources)
-        seg_len = min(pace_seconds[pace], source_length)
-        slots = max(1, visit_totals[source_index] - 1)
-        offset = 0.0 if visit_totals[source_index] <= 1 else (visits[source_index] * max(0.0, source_length - seg_len) / slots)
-        visits[source_index] += 1
+    for k, (src, offset, seg_len) in enumerate(selected):
         target = ROOT / f"segment_{k:03d}.mp4"
         run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{offset:.3f}","-i",str(src),"-t",f"{seg_len:.2f}",
              "-filter_complex","[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:12,eq=brightness=-0.16:saturation=0.72[back];[fg]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos[front];[back][front]overlay=(W-w)/2:(H-h)/2,fps=30,setsar=1,format=yuv420p[v]",
@@ -208,7 +202,7 @@ def main():
         "NOTE: Verify music and footage usage rights before publishing. If no music was supplied, add a sound from TikTok's in-app library.\n"
     )
     print(f"SUCCESS: {final} ({final.stat().st_size} bytes)")
-    print(f"Sources processed: {len(clips)} | duration: {duration}s | pace: {pace} | hook: {'included' if hook_text else 'off'} | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
+    print(f"Highlights selected: {len(clips)} | duration: {duration}s | motion-ranked | hook: {'included' if hook_text else 'off'} | voiceover: {'included' if narration else 'not included'} | captions: {'burned in' if narration else 'off'} | music: {'included' if music_url else 'not included'}")
     if self_test:
         check = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
             "-show_entries", "stream=width,height,r_frame_rate", "-of", "csv=p=0", str(final)],
