@@ -62,10 +62,32 @@ def main():
             shutil.rmtree(drive_dir, ignore_errors=True)
             drive_dir.mkdir(parents=True, exist_ok=True)
             print("Downloading shared Google Drive folder...")
-            downloaded = gdown.download_folder(
-                url=drive_folder_url, output=str(drive_dir),
-                quiet=False, use_cookies=False
+            # Run the Drive downloader in a child process so a stalled Google
+            # Drive listing/download cannot leave the workflow hanging forever.
+            import sys
+            downloader = (
+                "import gdown; "
+                + "files = gdown.download_folder("
+                + "url=" + repr(drive_folder_url) + ", "
+                + "output=" + repr(str(drive_dir)) + ", "
+                + "quiet=False, use_cookies=False); "
+                + "print('DRIVE_DOWNLOAD_COUNT=' + str(len(files or [])))"
             )
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-c", downloader],
+                    check=True, timeout=1200
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError(
+                    "Google Drive download exceeded 20 minutes. "
+                    "Check folder size and link sharing, then retry."
+                ) from exc
+            downloaded_count = 0
+            for item in drive_dir.rglob("*"):
+                if item.is_file():
+                    downloaded_count += 1
+            downloaded = [str(x) for x in drive_dir.rglob("*") if x.is_file()]
             if not downloaded:
                 raise RuntimeError("Google Drive folder download returned no files. Check that the folder is shared as 'Anyone with the link — Viewer'.")
             source_paths.extend(
