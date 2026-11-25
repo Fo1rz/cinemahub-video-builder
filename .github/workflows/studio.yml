@@ -128,7 +128,7 @@ jobs:
           CATEGORY: ${{ inputs.category || 'games' }}
           SOURCE_URLS: ${{ inputs.source_urls || '' }}
           DRIVE_FOLDER_URL: ${{ inputs.drive_folder_url || 'https://drive.google.com/drive/folders/1xo44fqdcea1AW1q-3Gcd7Ox4B5mF-2Ru' }}
-          HASHTAGS: ${{ inputs.hashtags || '#GTA6 #Gaming #CinemaHub' }}
+          HASHTAGS: "${{ inputs.hashtags || '#GTA6 #Gaming #CinemaHub' }}"
           DESCRIPTION: ${{ inputs.description || 'Мои лучшие моменты из GTA 6. Какой эпизод самый мощный?' }}
           MUSIC_URL: ${{ inputs.music_url || '' }}
           HOOK_TEXT: ${{ inputs.hook_text || 'ЭТОТ МОМЕНТ В GTA 6…' }}
