@@ -155,7 +155,7 @@ def main():
             (src0, 99.5, 4.0),
             (src0, 104.5, 4.0),
             (src0, 109.0, 4.0),
-            (src0, 115.0, 4.0),
+            (src0, 115.0, 4.5),
         ]
         print("Editorial sequence: GTA 6 giant-NPC reveal and encounter")
     else:
@@ -163,7 +163,7 @@ def main():
     clips, clip_lengths = [], []
     for k, (src, offset, seg_len) in enumerate(selected):
         target = ROOT / f"segment_{k:03d}.mp4"
-        video_filter = "[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:12,eq=brightness=-0.16:saturation=0.72[back];[fg]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos[front];[back][front]overlay=(W-w)/2:(H-h)/2,fps=30,setsar=1,format=yuv420p[v]"
+        video_filter = f"[0:v]trim=start={offset:.3f}:duration={seg_len:.3f},setpts=PTS-STARTPTS,split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:12,eq=brightness=-0.16:saturation=0.72[back];[fg]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos[front];[back][front]overlay=(W-w)/2:(H-h)/2,fps=30,setsar=1,format=yuv420p[v]"
         if has_audio(src):
             audio_filter = f"[0:a]atrim=start={offset:.3f}:duration={seg_len:.2f},asetpts=PTS-STARTPTS,aresample=48000[a]"
             run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),"-filter_complex",video_filter+";"+audio_filter,
@@ -173,11 +173,14 @@ def main():
                  "-filter_complex",video_filter+";anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration="+f"{seg_len:.2f}"+"[a]",
                  "-map","[v]","-map","[a]","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-movflags","+faststart",str(target)])
         clips.append(target); clip_lengths.append(seg_len)
-    # Repeat the paced sequence only when the selected excerpts do not fill the requested duration.
+    # Never loop/repeat selected footage to pad a requested duration.
+    # Repetition creates visibly duplicated scenes and can make unrelated audio feel overlaid.
     playlist, total = list(clips), sum(clip_lengths)
-    while total < duration:
-        playlist.extend(clips)
-        total += sum(clip_lengths)
+    if total + 0.01 < duration:
+        raise RuntimeError(
+            f"Selected excerpts total {total:.2f}s, shorter than requested {duration}s. "
+            "Choose more genuine footage instead of repeating clips."
+        )
     concat = ROOT / "concat.txt"
     concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in playlist))
     silent = ROOT / "silent.mp4"
