@@ -131,7 +131,7 @@ jobs:
           HASHTAGS: "${{ inputs.hashtags || '#GTA6 #Gaming #CinemaHub' }}"
           DESCRIPTION: ${{ inputs.description || 'Мои лучшие моменты из GTA 6. Какой эпизод самый мощный?' }}
           MUSIC_URL: ${{ inputs.music_url || '' }}
-          HOOK_TEXT: ${{ inputs.hook_text || 'Я НАШЁЛ ГИГАНТА В GTA 6…' }}
+          HOOK_TEXT: ${{ inputs.hook_text || '' }}
           NARRATION_TEXT: ${{ inputs.narration_text || '' }}
           VOICE: ${{ inputs.voice || 'ru-RU-DmitryNeural' }}
           DURATION: ${{ inputs.duration || (github.event_name == 'push' && '22') || '60' }}
