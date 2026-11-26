@@ -25,6 +25,10 @@ def probe(path):
     try: return float(p.stdout.strip())
     except: return 0.0
 
+def has_audio(path):
+    p = subprocess.run(["ffprobe","-v","error","-select_streams","a:0","-show_entries","stream=codec_type","-of","csv=p=0",str(path)], capture_output=True, text=True)
+    return p.stdout.strip() == "audio"
+
 def main():
     title = os.getenv("PROJECT_TITLE", "CinemaHub video").strip()
     category = os.getenv("CATEGORY", "games").strip()
@@ -159,9 +163,15 @@ def main():
     clips, clip_lengths = [], []
     for k, (src, offset, seg_len) in enumerate(selected):
         target = ROOT / f"segment_{k:03d}.mp4"
-        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{offset:.3f}","-i",str(src),"-t",f"{seg_len:.2f}",
-             "-filter_complex","[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:12,eq=brightness=-0.16:saturation=0.72[back];[fg]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos[front];[back][front]overlay=(W-w)/2:(H-h)/2,fps=30,setsar=1,format=yuv420p[v]",
-             "-map","[v]","-an","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-movflags","+faststart",str(target)])
+        video_filter = "[0:v]split=2[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:12,eq=brightness=-0.16:saturation=0.72[back];[fg]scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos[front];[back][front]overlay=(W-w)/2:(H-h)/2,fps=30,setsar=1,format=yuv420p[v]"
+        if has_audio(src):
+            audio_filter = f"[0:a]atrim=start={offset:.3f}:duration={seg_len:.2f},asetpts=PTS-STARTPTS,aresample=48000[a]"
+            run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),"-filter_complex",video_filter+";"+audio_filter,
+                 "-map","[v]","-map","[a]","-t",f"{seg_len:.2f}","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-ar","48000","-ac","2","-movflags","+faststart",str(target)])
+        else:
+            run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",f"{offset:.3f}","-i",str(src),"-t",f"{seg_len:.2f}",
+                 "-filter_complex",video_filter+";anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration="+f"{seg_len:.2f}"+"[a]",
+                 "-map","[v]","-map","[a]","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-movflags","+faststart",str(target)])
         clips.append(target); clip_lengths.append(seg_len)
     # Repeat the paced sequence only when the selected excerpts do not fill the requested duration.
     playlist, total = list(clips), sum(clip_lengths)
@@ -172,7 +182,7 @@ def main():
     concat.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in playlist))
     silent = ROOT / "silent.mp4"
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i",str(concat),"-t",str(duration),
-         "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","veryfast","-crf","19","-an","-movflags","+faststart",str(silent)])
+         "-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","veryfast","-crf","19","-c:a","aac","-b:a","192k","-ar","48000","-ac","2","-movflags","+faststart",str(silent)])
     music_url = os.getenv("MUSIC_URL","").strip()
     narration = os.getenv("NARRATION_TEXT","").strip()
     hook_text = os.getenv("HOOK_TEXT","").strip()
