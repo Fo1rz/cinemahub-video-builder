@@ -140,7 +140,22 @@ def main():
     # Rank short windows by actual on-screen motion, then select diverse highlights.
     from highlight_select import select_segments
     target_cut = 1.9 if duration >= 45 else pace_seconds[pace]
-    selected = select_segments(sources, duration, target_cut)
+    # Editorially curated sequence for the discovered giant-NPC encounter
+    # in the first GTA recording. Offsets are source-relative and intentionally
+    # keep the reveal, reaction and aftermath together as one short story.
+    if not self_test and duration == 22 and sources and "master_playlist" in sources[0][0].name:
+        src0 = sources[0][0]
+        selected = [
+            (src0, 73.5, 2.5),
+            (src0, 94.0, 3.0),
+            (src0, 99.5, 4.0),
+            (src0, 104.5, 4.0),
+            (src0, 109.0, 4.0),
+            (src0, 115.0, 4.0),
+        ]
+        print("Editorial sequence: GTA 6 giant-NPC reveal and encounter")
+    else:
+        selected = select_segments(sources, duration, target_cut)
     clips, clip_lengths = [], []
     for k, (src, offset, seg_len) in enumerate(selected):
         target = ROOT / f"segment_{k:03d}.mp4"
