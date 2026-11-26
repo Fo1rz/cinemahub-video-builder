@@ -117,10 +117,23 @@ def main():
     review_dir = OUT / "source-review"
     review_dir.mkdir(parents=True, exist_ok=True)
     for idx, (src, source_length) in enumerate(sources):
-        sheet = review_dir / f"source-{idx+1:02d}.jpg"
-        run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),
-             "-vf","fps=1/3,scale=320:180:force_original_aspect_ratio=decrease,pad=320:180:(ow-iw)/2:(oh-ih)/2,tile=4x4",
-             "-frames:v","1","-q:v","3",str(sheet)])
+        # Dense one-frame-per-second contact sheets, split into 30-second
+        # pages. This makes short-lived easter eggs and character cameos
+        # discoverable instead of sampling only every three seconds.
+        page_count = max(1, int((source_length + 29.999) // 30))
+        for page in range(page_count):
+            start = page * 30
+            sheet = review_dir / f"source-{idx+1:02d}-t{start:04d}.jpg"
+            vf = (
+                "fps=1,scale=320:180:force_original_aspect_ratio=decrease,"
+                "pad=320:180:(ow-iw)/2:(oh-ih)/2,"
+                "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
+                "text='%{pts\\:hms}':x=6:y=6:fontsize=15:fontcolor=white:"
+                "box=1:boxcolor=black@0.65:boxborderw=4,"
+                "tile=5x6"
+            )
+            run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss",str(start),"-t","30","-i",str(src),
+                 "-vf",vf,"-frames:v","1","-q:v","3",str(sheet)])
     (review_dir / "sources.txt").write_text(
         "\\n".join(f"{i+1}. {Path(src).name} — {length:.1f}s" for i,(src,length) in enumerate(sources)),
         encoding="utf-8")
