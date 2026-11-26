@@ -131,10 +131,10 @@ jobs:
           HASHTAGS: "${{ inputs.hashtags || '#GTA6 #Gaming #CinemaHub' }}"
           DESCRIPTION: ${{ inputs.description || 'Мои лучшие моменты из GTA 6. Какой эпизод самый мощный?' }}
           MUSIC_URL: ${{ inputs.music_url || '' }}
-          HOOK_TEXT: ${{ inputs.hook_text || 'ЭТОТ МОМЕНТ В GTA 6…' }}
+          HOOK_TEXT: ${{ inputs.hook_text || 'Я НАШЁЛ ГИГАНТА В GTA 6…' }}
           NARRATION_TEXT: ${{ inputs.narration_text || '' }}
           VOICE: ${{ inputs.voice || 'ru-RU-DmitryNeural' }}
-          DURATION: ${{ inputs.duration || '60' }}
+          DURATION: ${{ inputs.duration || (github.event_name == 'push' && '22') || '60' }}
           PACE: ${{ inputs.pace || 'fast' }}
         run: python3 scripts/studio_build.py
       - name: Upload finished studio package
